@@ -1,6 +1,6 @@
 ### NIKOLA ###
 cache
-.doit.db
+.doit.db.db
 __pycache__
 output
 
