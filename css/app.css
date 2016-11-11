@@ -5,9 +5,9 @@
     -moz-background-size: cover;
     -o-background-size: cover;
     background-size: cover;
+    height: 20%;
 }
 
 .bannertext {
     color: #707070;
-    margin-top: -20px;
 }
