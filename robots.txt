@@ -1,4 +1,0 @@
-Sitemap: http://peterstratton.com/sitemapindex.xml
-
-User-Agent: *
-Host: peterstratton.com
