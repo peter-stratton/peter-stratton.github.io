@@ -12,7 +12,7 @@ http://peterstratton.com/
 A record of things I'd like not to forget, with the added potential to help others.
 </description>
 <lastBuildDate>
-Thu, 10 Nov 2016 22:17:35 -0500
+Thu, 10 Nov 2016 22:43:31 -0500
 </lastBuildDate>
 <generator>
 clj-rss
@@ -28,7 +28,7 @@ http://peterstratton.com/posts-output/2016-11-10-hello-world/
 Test post, please ignore.
 </title>
 <description>
-&lt;p&gt; This is my first post!&lt;/p&gt;&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc sodales pharetra massa, eget fringilla ex ornare et. Nunc mattis diam ac urna finibus sodales. Etiam sed ipsum et purus commodo bibendum. Cras libero magna, fringilla tristique quam sagittis, volutpat auctor mi. Aliquam luctus, nulla et vestibulum finibus, nibh justo semper tortor, nec vestibulum tortor est nec nisi.&lt;/p&gt;&lt;pre&gt;&lt;code&gt;&amp;#40;defn addstuff &amp;#91;x &amp;amp; stuff&amp;#93; &amp;#40;+ x stuff&amp;#41;&amp;#41;
+&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc sodales pharetra massa, eget fringilla ex ornare et. Nunc mattis diam ac urna finibus sodales. Etiam sed ipsum et purus commodo bibendum. Cras libero magna, fringilla tristique quam sagittis, volutpat auctor mi. Aliquam luctus, nulla et vestibulum finibus, nibh justo semper tortor, nec vestibulum tortor est nec nisi.&lt;/p&gt;&lt;pre&gt;&lt;code&gt;&amp;#40;defn addstuff &amp;#91;x &amp;amp; stuff&amp;#93; &amp;#40;+ x stuff&amp;#41;&amp;#41;
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc sodales pharetra massa, eget fringilla ex ornare et. Nunc mattis diam ac urna finibus sodales. Etiam sed ipsum et purus commodo bibendum. Cras libero magna, fringilla tristique quam sagittis, volutpat auctor mi. Aliquam luctus, nulla et vestibulum finibus, nibh justo semper tortor, nec vestibulum tortor est nec nisi.&lt;/p&gt;
 </description>
 <enclosure>
