@@ -12,11 +12,83 @@ http://peterstratton.com/
 A record of things I'd like not to forget, with the added potential to help others.
 </description>
 <lastBuildDate>
-Fri, 16 Dec 2016 23:04:03 -0500
+Sat, 07 Jan 2017 18:24:44 -0500
 </lastBuildDate>
 <generator>
 clj-rss
 </generator>
+<item>
+<guid>
+http://peterstratton.com/posts-output/2017-01-04-algorithms-logarithms-and-big-o/
+</guid>
+<link>
+http://peterstratton.com/posts-output/2017-01-04-algorithms-logarithms-and-big-o/
+</link>
+<title>
+Algorithms, Logarithms, and Big O
+</title>
+<description>
+&lt;hr/&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;introduction&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Self-taught developers tend to have a very pragmatic approach to software development.  We learn from projects, tutorials, practical courses, and technical books.  There's nothing wrong with that.  But, we're missing some of the fundamentals that traditional Computer Science majors get during their coursework.&lt;br /&gt;&lt;/p&gt;&lt;p&gt;The goal of this post is to demystify the basic terms and concepts you'll need to understand before we start delving into actual examples.  I'll be going over what algorithms and logarithms are, how to calculate Logarithmic run times, what Big O notation is, and why you should care about all of this.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;algorithms&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Algorithms&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;You'll be relieved to discover that you already know exactly what an algorithm is.  Despite sounding kind of exotic, an algorithm is nothing more than a set of instructions.  A cooking recipe is an algorithm used to create dinner.  Binary Search is an algorithm to find a list element.&lt;/p&gt;&lt;p&gt;If you write code, you're in the business of algorithms.  To write good code, you'll need to understand algorithm design, and of equal importance, algorithm analysis.  Luckily for you, most languages come with built in functions for the most commonly encountered algorithms.  In other words, if you ever find yourself implementing Binary Search from scratch, you're doing it wrong.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;mathematical&amp;#95;notation&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Mathematical Notation&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Unless you were a math major, deciphering mathematical notation can be a huge hurdle.  The good news is you're not going to need to for this series.  I'll be presenting each of the algorithms and various calculations in pure python code.  Here's an example using the Summation symbol (sum over a range of numbers) to illustrate what I'm talking about:&lt;/p&gt;&lt;p&gt;&lt;math xmlns='http://www.w3.org/1998/Math/MathML' display='block'&gt; &lt;munderover&gt; &lt;mo&gt;&amp;sum;&lt;/mo&gt; &lt;mrow&gt; &lt;mi&gt;k&lt;/mi&gt; &lt;mo&gt;=&lt;/mo&gt; &lt;mn&gt;1&lt;/mn&gt; &lt;/mrow&gt; &lt;mn&gt;4&lt;/mn&gt; &lt;/munderover&gt; &lt;msup&gt; &lt;mi&gt;k&lt;/mi&gt; &lt;mn&gt;2&lt;/mn&gt; &lt;/msup&gt; &lt;mo&gt;=&lt;/mo&gt; &lt;mn&gt;30&lt;/mn&gt; &lt;/math&gt;&lt;/p&gt;&lt;p&gt;Kind of cryptic, right?  Here's a long form equivalent that should make a lot more sense:&lt;/p&gt;&lt;p&gt;&lt;math xmlns='http://www.w3.org/1998/Math/MathML' display='block'&gt; &lt;msup&gt;&lt;mn&gt;1&lt;/mn&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mo&gt;+&lt;/mo&gt; &lt;msup&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mo&gt;+&lt;/mo&gt; &lt;msup&gt;&lt;mn&gt;3&lt;/mn&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mo&gt;+&lt;/mo&gt; &lt;msup&gt;&lt;mn&gt;4&lt;/mn&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mn&gt;30&lt;/mn&gt; &lt;/math&gt;&lt;/p&gt;&lt;p&gt;Finally, here's the equivalent (non-idiomatic, for clarity) Python code:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;k = 1                 # first addend
+addend&amp;#95;limit = k + 4  # range limit for the addend sequence
+result = 0
+
+while k &amp;lt; addend&amp;#95;limit:
+    result += pow&amp;#40;k, 2&amp;#41;
+    k += 1
+
+print&amp;#40;result&amp;#41;         # 30
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The point of all this is that while Mathematical Notation is incredibly useful (and in many cases necessary) to clearly describe an algorithm, you won't need to understand it for this article series.  If you want to learn more about what all the various symbols mean, &lt;a href='https://en.wikipedia.org/wiki/List_of_mathematical_symbols'&gt;wikipedia has you covered&lt;/a&gt;.  If you want to learn more about why symbols are helpful, &lt;a href='http://www.mathworksheetscenter.com/mathtips/symbolsinmath.html'&gt;read this&lt;/a&gt;. If you want to get really heavy, &lt;a href='http://www.stephenwolfram.com/publications/mathematical-notation-past-future/'&gt;read this&lt;/a&gt;.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;logarithms&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Logarithms&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;One of the most common algorithm run times (more on run times in the next section) is Log Time, or Logarithmic Time.  The logarithm of a number is the exponent to which another fixed number, the base, must be raised to produce that number&lt;sup&gt;&lt;a href='https://en.wikipedia.org/wiki/Logarithm'&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;br /&gt;&lt;/p&gt;&lt;p&gt;In the example above, we raised each of the addend base numbers to the power of 2.  The final number in our addend sequence was 4, which when raised to the power of 2 became 16.  So &lt;math xmlns='http://www.w3.org/1998/Math/MathML' display='inline'&gt;&lt;msub&gt;&lt;mi&gt;log&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msub&gt;&lt;mn&gt;16&lt;/mn&gt;&lt;/math&gt;, is equivalent to asking what number when raised to the power of 2 equals 16.&lt;/p&gt;&lt;p&gt;Python has a &lt;code&gt;log&amp;#40;&amp;#41;&lt;/code&gt; function in the &lt;code&gt;math&lt;/code&gt; package that we can use to do the heavy lifting for us.  You'll almost always use log 2 when calculating Logarithmic run times.  Here's the code to calculate &lt;math xmlns='http://www.w3.org/1998/Math/MathML' display='inline'&gt;&lt;msub&gt;&lt;mi&gt;log&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msub&gt;&lt;mn&gt;16&lt;/mn&gt;&lt;/math&gt;&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;from math import log
+
+log&amp;#40;16, 2&amp;#41;  # 4
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;big&amp;#95;o&amp;#95;notation&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Big O Notation&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;You probably have an intuitive sense for how fast a function is when you write it.  Lots of nested for loops? Probably bad.  Big O will help you figure out exactly how fast your algorithms times are.  Why does this matter if you already have an idea of how fast your code is?  If you use third party libraries, you'll often want to know exactly how expensive an imported algorithm is going to be.  Even with your own code, calculating run times and understanding how those times scale is easier with a little math than feeding dozens of differently sized data sets into your algorithm.&lt;/p&gt;&lt;p&gt;When calculating a run time, you'll want to be pessimistic.  It's the worst case scenario that's most important.  For example, lets say we want to search the following list of alphabetically sorted user names:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;users = &amp;#91;'Aaron', 'Becky', 'Chris',
+         'Dora', 'Eric', 'Felicia',
+         'George', 'Holly', 'Igor',
+         'Justine', 'Karl', 'Lisa',
+         'Moe', 'Nina', 'Olof',
+         'Penny', 'Quentin', 'Rebecca',
+         'Steve', 'Tina', 'Umberto',
+         'Vicky', 'Walter', 'Xena',
+         'Yosef', 'Zoe'&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We care about the run time to find &quot;Zoe&quot;, not &quot;Aaron&quot;.  The other very important thing to understand about Big O is that it tells us how well our algorithm will &lt;strong&gt;scale&lt;/strong&gt;.  Here's a quick breakdown of some of the most common Big O run times from best to worst with an example operation:&lt;/p&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Notation&lt;/th&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Scalabity&lt;/th&gt;&lt;th&gt;Example&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;O(1)&lt;/td&gt;&lt;td&gt;constant&lt;/td&gt;&lt;td&gt;Excellent&lt;/td&gt;&lt;td&gt;Hash Table (Python Dictionary) Keyword Lookup&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(log &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;logarithmic&lt;/td&gt;&lt;td&gt;Good&lt;/td&gt;&lt;td&gt;Binary Search&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;linear&lt;/td&gt;&lt;td&gt;Fair&lt;/td&gt;&lt;td&gt;Simple Search&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt; * log &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;n log-star n&lt;/td&gt;&lt;td&gt;Bad&lt;/td&gt;&lt;td&gt;Quicksort&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;)&lt;/td&gt;&lt;td&gt;quadratic&lt;/td&gt;&lt;td&gt;Horrible&lt;/td&gt;&lt;td&gt;Selection Sort&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;!)&lt;/td&gt;&lt;td&gt;factorial&lt;/td&gt;&lt;td&gt;The Worst&lt;/td&gt;&lt;td&gt;Traveling Salesman via Brute Force&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;p&gt;There are a bunch of other notations, but they aren't as common, wikipedia has you covered &lt;a href='https://en.wikipedia.org/wiki/Big_O_notation#Orders_of_common_functions'&gt;if you're interested&lt;/a&gt;.  This next table illustrates the run time scaling for each of the notations listed above if we were searching the &lt;code&gt;users&lt;/code&gt; array, assuming it took one second to process each element:&lt;/p&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Notation&lt;/th&gt;&lt;th&gt;Seconds to &quot;Chris&quot;&lt;/th&gt;&lt;th&gt;Seconds to &quot;Zoe&quot;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;O(1)&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(log &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;1.5&lt;/td&gt;&lt;td&gt;4.7&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;3&lt;/td&gt;&lt;td&gt;26&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt; * log &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;4.5&lt;/td&gt;&lt;td&gt;122&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;&lt;/td&gt;&lt;td&gt;9&lt;/td&gt;&lt;td&gt;676&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;!)&lt;/td&gt;&lt;td&gt;6&lt;/td&gt;&lt;td&gt;403291461126605635584000000&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;p&gt;See why scaling matters?  As another quick example to really drive home the point, lets say you had a list of 1 million users with &quot;Zoe&quot; at the end, and a search algorithm that took a second to process each name:&lt;/p&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Notation&lt;/th&gt;&lt;th&gt;Seconds to &quot;Zoe&quot;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;O(log &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;19.93 &lt;strong&gt;SECONDS&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;O(&lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;td&gt;11.57 &lt;strong&gt;DAYS&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;p&gt;I'm not even going to list the rest of the run times, it gets scary.  The final thing I'm going to go over in this section is the python code to calculate each Big O growth factor for the main notations I've listed up above.  Once you know that, it's just a case of determining how long your algorithm takes to process a single element then multiplying the two results together to get your worst case run time.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;from math import log, factorial
+
+# This is our input array
+users = &amp;#91;'Aaron', 'Becky', 'Chris',
+         'Dora', 'Eric', 'Felicia',
+         'George', 'Holly', 'Igor',
+         'Justine', 'Karl', 'Lisa',
+         'Moe', 'Nina', 'Olof',
+         'Penny', 'Quentin', 'Rebecca',
+         'Steve', 'Tina', 'Umberto',
+         'Vicky', 'Walter', 'Xena',
+         'Yosef', 'Zoe'&amp;#93;
+
+# Here is how to calculate each notations growth factor
+# O&amp;#40;1&amp;#41;
+constant&amp;#95;factor = 1  # 1
+
+# O&amp;#40;log n&amp;#41;
+logarithmic&amp;#95;factor = log&amp;#40;len&amp;#40;users&amp;#41;, 2&amp;#41;  # 4.7
+
+# O&amp;#40;n&amp;#41;
+linear&amp;#95;factor = len&amp;#40;users&amp;#41;  # 26
+
+# O&amp;#40;n &amp;#42; log n&amp;#41;
+n&amp;#95;log&amp;#95;star&amp;#95;n&amp;#95;factor = len&amp;#40;users&amp;#41; &amp;#42; log&amp;#40;len&amp;#40;users&amp;#41;, 2&amp;#41;  # 122
+
+# O&amp;#40;n&amp;#94;2&amp;#41;
+quadratic&amp;#95;factor = pow&amp;#40;len&amp;#40;users&amp;#41;, 2&amp;#41;  # 676
+
+# O&amp;#40;n!&amp;#41;
+factorial&amp;#95;factor = factorial&amp;#40;len&amp;#40;users&amp;#41;&amp;#41;  # 403291461126605635584000000L
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;conclusion&quot;&gt;&lt;/a&gt;Conclusion&lt;/h4&gt;&lt;p&gt;So, hopefully that helps lay the foundation for the rest of the this series.  Once we start going over various algorithms, I'm hoping this post will help things crystallize for you.  Good luck!  Feel free to hit me up on &lt;a href='https://twitter.com/halescode'&gt;twitter&lt;/a&gt; or send me a message on &lt;a href='https://www.linkedin.com/in/peterstratton'&gt;LinkedIn&lt;/a&gt; if you have any questions!&lt;/p&gt;
+</description>
+<enclosure>
+
+</enclosure>
+<pubDate>
+Wed, 04 Jan 2017 00:00:00 -0500
+</pubDate>
+</item>
 <item>
 <guid>
 http://peterstratton.com/posts-output/2016-12-13-imposters-guide-to-software-development/
