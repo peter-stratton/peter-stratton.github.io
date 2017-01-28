@@ -12,11 +12,289 @@ http://peterstratton.com/
 A record of things I'd like not to forget, with the added potential to help others.
 </description>
 <lastBuildDate>
-Tue, 10 Jan 2017 14:58:27 -0500
+Fri, 27 Jan 2017 20:55:00 -0500
 </lastBuildDate>
 <generator>
 clj-rss
 </generator>
+<item>
+<guid>
+http://peterstratton.com/posts-output/2017-01-28-postgres-and-clojure-using-clojure-java-jdbc/
+</guid>
+<link>
+http://peterstratton.com/posts-output/2017-01-28-postgres-and-clojure-using-clojure-java-jdbc/
+</link>
+<title>
+Postgres and Clojure Using clojure.java.jdbc
+</title>
+<description>
+&lt;hr/&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;introduction&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;In this post I'll be going over how to use the &lt;code&gt;clojure.java.jdbc&lt;/code&gt; library to work with PostgreSQL.  We'll touch upon all the basic CRUD operations, as well as how to implement Foreign Key constraints, define update and deletion policies, and build Many-To-Many relationships.&lt;br /&gt;&lt;/p&gt;&lt;p&gt;Being fairly low-level, &lt;code&gt;clojure.java.jdbc&lt;/code&gt; presents a very thing abstraction layer and we'll often we passing in parameterized (and sometimes raw) SQL into our forms.  There is a corresponding video series on YouTube if you prefer watching over reading.&lt;br /&gt;&lt;/p&gt;&lt;ol&gt;&lt;li&gt;&lt;a href='https://youtu.be/yjS0jHr_-2g'&gt;Postgres &amp; Clojure Using clojure.java.jdbc - Part 1 of 3 &lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='https://youtu.be/XKv2yg_2EX4'&gt;Postgres &amp; Clojure Using clojure.java.jdbc - Part 2 of 3 &lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='https://youtu.be/4dJzrrrbc7Y'&gt;Postgres &amp; Clojure Using clojure.java.jdbc - Part 3 of 3 &lt;/a&gt;&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;As usual, let me know if you have any questions or problems.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;pre-requisites&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Pre-Requisites&lt;/strong&gt;&lt;/h4&gt;&lt;ol&gt;&lt;li&gt;&lt;a href='https://www.postgresql.org/download/'&gt;PostgreSQL&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='https://leiningen.org/'&gt;Leiningen&lt;/a&gt;&lt;/li&gt;&lt;/ol&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;quick&amp;#95;setup&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Quick Setup&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;If you already have an empty database and don't really care about setting up the Leiningen app, you can just clone the project repository and load the demo worksheet into Gorilla.&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Clone the &lt;a href='https://github.com/peter-stratton/clovids-relational-jdbc'&gt;project repo&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;code&gt;cd&lt;/code&gt; into the newly cloned project and run &lt;code&gt;lein gorilla&lt;/code&gt;&lt;/li&gt;&lt;li&gt;Load the &lt;code&gt;clojure-java-jdbc-lib.cljw&lt;/code&gt; worksheet from the &lt;code&gt;ws&lt;/code&gt; directory into your Gorilla REPL session&lt;/li&gt;&lt;/ol&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;how&amp;#95;to&amp;#95;follow&amp;#95;along&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;How to Follow Along&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;If you'd prefer to work in the normal clojure REPL, or want to build up your own Gorilla worksheet from scratch, the rest of this post will walk you through the session.  Good luck!&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;database&amp;#95;setup&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Database Setup&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;First thing's first, we'll need a database.  I'll also be creating a new user since I like to make my local dev environment as close to what I'll be using in production.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;sql&quot;&gt;$ psql
+psql &amp;#40;9.6.1&amp;#41;
+Type &amp;quot;help&amp;quot; for help.
+
+postgres=# CREATE USER public&amp;#95;land&amp;#95;user WITH PASSWORD 'keeppubliclandinpublichands';
+CREATE ROLE
+postgres=# CREATE DATABASE public&amp;#95;land OWNER public&amp;#95;land&amp;#95;user;
+CREATE DATABASE
+postgres=# \c public&amp;#95;land
+You are now connected to database &amp;quot;public&amp;#95;land&amp;quot; as user &amp;quot;pstratton&amp;quot;.
+postgres=# \dt
+No relations found.
+postgres=# \q
+$
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;leiningen&amp;#95;project&amp;#95;setup&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Leiningen Project Setup&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Let's create a new project using the built-in &lt;code&gt;app&lt;/code&gt; template:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;$ lein new app public-land-finder
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Next we'll need to add our project dependencies.  If we navigate to the &lt;a href='https://github.com/clojure/java.jdbc'&gt;clojure.java.jdbc&lt;/a&gt; repo we can see the Lein dependency information listed, so lets add that to the &lt;code&gt;:dependencies&lt;/code&gt; section of our &lt;code&gt;project.clj&lt;/code&gt; file first:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;...
+:dependencies &amp;#91;&amp;#91;org.clojure/clojure &amp;quot;1.8.0&amp;quot;&amp;#93;
+               &amp;#91;org.clojure/java.jdbc &amp;quot;0.7.0-alpha1&amp;quot;&amp;#93;&amp;#93;
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We're also going to need to pull down the JDBC driver for whichever database we'll be using, in our case, PostgreSQL.  Let's follow the &lt;a href='http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.postgresql%22%20AND%20a%3A%22postgresql%22'&gt;Maven Central&lt;/a&gt; link and sort out which version we need.  It looks like 9.4.1212 is the latest, so let's add that:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;...
+:dependencies &amp;#91;&amp;#91;org.clojure/clojure &amp;quot;1.8.0&amp;quot;&amp;#93;
+               &amp;#91;org.clojure/java.jdbc &amp;quot;0.7.0-alpha1&amp;quot;&amp;#93;
+               &amp;#91;org.postgresql/postgresql &amp;quot;9.4.1212&amp;quot;&amp;#93;&amp;#93;
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Finally, let's add the &lt;code&gt;lein-gorilla&lt;/code&gt; plugin so we can do all of our work in the gorilla REPL.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;:dependencies &amp;#91;&amp;#91;org.clojure/clojure &amp;quot;1.8.0&amp;quot;&amp;#93;
+               &amp;#91;org.clojure/java.jdbc &amp;quot;0.7.0-alpha1&amp;quot;&amp;#93;
+               &amp;#91;org.postgresql/postgresql &amp;quot;9.4.1212&amp;quot;&amp;#93;&amp;#93;
+:plugins &amp;#91;&amp;#91;lein-gorilla &amp;quot;0.4.0&amp;quot;&amp;#93;&amp;#93;
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;repl&amp;#95;time!&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;REPL Time!&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Fire up a Gorilla REPL session and we can get started:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;$ lein gorilla
+Gorilla-REPL: 0.4.0
+Started nREPL server on port 59902
+Running at http://127.0.0.1:59905/worksheet.html .
+Ctrl+C to exit.
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Then open the HTML link to where the server is running, in my case &lt;code&gt;http://127.0.0.1:59905/worksheet.html&lt;/code&gt;.&lt;/p&gt;&lt;p&gt;Let's set a new namespace and do our imports.  We'll need the &lt;code&gt;clojure.java.jdbc&lt;/code&gt; library, of course.  We'll also want to alias &lt;code&gt;clojure.string&lt;/code&gt; for use later.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;ns public-land-finder
+  &amp;#40;:require &amp;#91;clojure.string :as str&amp;#93;
+            &amp;#91;clojure.java.jdbc :as j&amp;#93;&amp;#41;&amp;#41;
+; nil
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;creating&amp;#95;tables&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Creating Tables&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Now that we've imported &lt;code&gt;clojure.java.jdbc&lt;/code&gt; library, we can create a new &lt;code&gt;db-spec&lt;/code&gt; for our &lt;code&gt;public&amp;#95;land&lt;/code&gt; database:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;def db {:dbtype &amp;quot;postgresql&amp;quot;
+         :dbname &amp;quot;public&amp;#95;land&amp;quot;
+         :host &amp;quot;localhost&amp;quot;
+         :user &amp;quot;public&amp;#95;land&amp;#95;user&amp;quot;
+         :password &amp;quot;keeppubliclandinpublichands&amp;quot;}&amp;#41;
+; #'public-land-finder/db
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Our nascent project datastore will only have two tables: &lt;code&gt;state&lt;/code&gt; and &lt;code&gt;state&amp;#95;forest&lt;/code&gt;.  Here's the ERD:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage00.png&quot; alt=&quot;ERD v01&quot; /&gt;&lt;/p&gt;&lt;p&gt;Next we'll use the &lt;code&gt;create-table-ddl&lt;/code&gt; form to auto-generate the SQL to create our &lt;code&gt;State&lt;/code&gt; table:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;def state-sql &amp;#40;j/create-table-ddl :state &amp;#91;&amp;#91;:state&amp;#95;id :serial &amp;quot;PRIMARY KEY&amp;quot;&amp;#93;
+                                           &amp;#91;:state &amp;quot;VARCHAR&amp;#40;32&amp;#41;&amp;quot;&amp;#93;
+                                           &amp;#91;:abrv &amp;quot;VARCHAR&amp;#40;2&amp;#41;&amp;quot;&amp;#93;&amp;#93;&amp;#41;&amp;#41;
+; #'public-land-finder/state-sql
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let's take a look at the the generated ddl:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;println state-sql&amp;#41;
+; CREATE TABLE state &amp;#40;state&amp;#95;id serial PRIMARY KEY, state VARCHAR&amp;#40;32&amp;#41;, abrv VARCHAR&amp;#40;2&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Everything looks good, so we'll go ahead and &lt;code&gt;execute!&lt;/code&gt; it:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;state-sql&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Then add our first record to the new table:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/insert! db :state {:state &amp;quot;Alabama&amp;quot; :abrv &amp;quot;AL&amp;quot;}&amp;#41;
+; &amp;#40;{:state&amp;#95;id 1, :state &amp;quot;Alabama&amp;quot;, :abrv &amp;quot;AL&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;running&amp;#95;queries&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Running Queries&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Let's run a simple query to retrieve our first record:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT &amp;#42; FROM state WHERE state = ?&amp;quot; &amp;quot;Alabama&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:state&amp;#95;id 1, :state &amp;quot;Alabama&amp;quot;, :abrv &amp;quot;AL&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Since Postgres returns the full record after a successful &lt;code&gt;insert!&lt;/code&gt;, our output is exactly the same.  Let's add some more state records.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;adding&amp;#95;multiple&amp;#95;records&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Adding Multiple Records&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;There are a few ways to add multiple records in a single query.  The &lt;code&gt;insert-multi!&lt;/code&gt; form takes a vector of hash-maps and returns the row data that was inserted:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/insert-multi! db :state &amp;#91;{:state &amp;quot;Alaska&amp;quot; :abrv &amp;quot;AK&amp;quot;}
+                            {:state &amp;quot;Arizona&amp;quot; :abrv &amp;quot;AZ&amp;quot;}
+                            {:state &amp;quot;Arkansas&amp;quot; :abrv &amp;quot;AR&amp;quot;}&amp;#93;&amp;#41;
+; &amp;#40;{:state&amp;#95;id 2, :state &amp;quot;Alaska&amp;quot;, :abrv &amp;quot;AK&amp;quot;} 
+;  {:state&amp;#95;id 3, :state &amp;quot;Arizona&amp;quot;, :abrv &amp;quot;AZ&amp;quot;}
+;  {:state&amp;#95;id 4, :state &amp;quot;Arkansas&amp;quot;, :abrv &amp;quot;AR&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The &lt;code&gt;db-do-prepared&lt;/code&gt; form accepts a parameterized SQL string and then a series of parameter groups.  Instead of returning row data, it returns a seq of update counts:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/db-do-prepared db &amp;#91;&amp;quot;INSERT INTO state &amp;#40;state, abrv&amp;#41; VALUES &amp;#40;?, ?&amp;#41;&amp;quot;
+                      &amp;#91;&amp;quot;California&amp;quot; &amp;quot;CA&amp;quot;&amp;#93;
+                      &amp;#91;&amp;quot;Colorado&amp;quot; &amp;quot;CO&amp;quot;&amp;#93;
+                      &amp;#91;&amp;quot;Connecticut&amp;quot; &amp;quot;CN&amp;quot;&amp;#93;&amp;#93; {:multi? true}&amp;#41;
+; &amp;#40;1 1 1&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;updating&amp;#95;records&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Updating Records&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Looks like we've made a mistake and used &quot;CN&quot; rather than &quot;CT&quot; for Connecticut's abbreviation, so let's fix that:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/update! db :state {:abrv &amp;quot;CT&amp;quot;} &amp;#91;&amp;quot;abrv = ?&amp;quot; &amp;quot;CN&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;1&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;then run a sanity check to make sure everything is cool:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT abrv FROM state WHERE state = ?&amp;quot; &amp;quot;Connecticut&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:abrv &amp;quot;CT&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;query&amp;#95;result&amp;#95;set&amp;#95;processing&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Query Result Set Processing&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;We can specify a function to be run against either the entire query result set and/or each individual row.  Let's look at &lt;code&gt;result-set-fn&lt;/code&gt; first.  In this example we're going to use the &lt;code&gt;count&lt;/code&gt; function that is part of the &lt;code&gt;clojure.core&lt;/code&gt; library.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;id FROM state&amp;quot;&amp;#93; {:result-set-fn count}&amp;#41;
+; 7
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Normally a query would return a result set of hash-maps.  If we wanted a sequence of just the state names, we could pass the &lt;code&gt;:state&lt;/code&gt; key in as the &lt;code&gt;row-fn&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT state FROM state&amp;quot;&amp;#93; {:row-fn :state}&amp;#41;
+; &amp;#40;&amp;quot;Alabama&amp;quot; &amp;quot;Alaska&amp;quot; &amp;quot;Arizona&amp;quot; &amp;quot;Arkansas&amp;quot; &amp;quot;California&amp;quot; &amp;quot;Colorado&amp;quot; &amp;quot;Connecticut&amp;quot;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We can use row and result set functions in the same query.  Let's write a utility function to retrieve a &lt;code&gt;state&amp;#95;id&lt;/code&gt; by its &lt;code&gt;abrv&lt;/code&gt; value or full name:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn id-for-state 
+  &amp;#91;s&amp;#93;
+  &amp;#40;if &amp;#40;= 2 &amp;#40;count s&amp;#41;&amp;#41;
+    &amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;id FROM state where abrv = ?&amp;quot; s&amp;#93; 
+             {:row-fn :state&amp;#95;id :result-set-fn first}&amp;#41;
+    &amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;id FROM state where state = ?&amp;quot; s&amp;#93;
+             {:row-fn :state&amp;#95;id :result-set-fn first}&amp;#41;&amp;#41;&amp;#41;
+; #'public-land-finder/id-for-state
+&lt;/code&gt;&lt;/pre&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;id-for-state &amp;quot;California&amp;quot;&amp;#41;
+; 5
+&amp;#40;id-for-state &amp;quot;AK&amp;quot;&amp;#41;
+; 2
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;foreign&amp;#95;key&amp;#95;constraints&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Foreign Key Constraints&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Now that we have our &lt;code&gt;states&lt;/code&gt; table started, let's add a &lt;code&gt;state&amp;#95;forest&lt;/code&gt; table.  We'll want each &lt;code&gt;state&amp;#95;forest&lt;/code&gt; to include a Foreign Key constraint to the state in which it's located.  We do this by using &lt;code&gt;REFERENCES&lt;/code&gt;.  Since we want to use the &lt;code&gt;state&lt;/code&gt; table's primary key, we only have to specify the name of the table.&lt;/p&gt;&lt;p&gt;We'll create the DDL and &lt;code&gt;execute!&lt;/code&gt; it in the same form this time:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;#40;j/create-table-ddl :state&amp;#95;forest &amp;#91;&amp;#91;:state&amp;#95;id :int &amp;quot;REFERENCES state&amp;quot;&amp;#93;
+                                                   &amp;#91;:state&amp;#95;forest&amp;#95;id :serial &amp;quot;PRIMARY KEY&amp;quot;&amp;#93;
+                                                   &amp;#91;:state&amp;#95;forest &amp;quot;VARCHAR&amp;#40;256&amp;#41;&amp;quot;&amp;#93;
+                                                   &amp;#91;:acres :int&amp;#93;&amp;#93;&amp;#41;&amp;#93;&amp;#41;
+&amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let's create a little utility function to facilitate loading &lt;code&gt;state&amp;#95;forest&lt;/code&gt; records from a simple &lt;code&gt;&amp;#91;state&amp;#95;forest acres&amp;#93;&lt;/code&gt; data structure.  Here's Alabama's data set:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;def al-sfs &amp;#91;&amp;#91;&amp;quot;Choccolocco&amp;quot; 4536&amp;#93;
+             &amp;#91;&amp;quot;Hauss&amp;quot; 319&amp;#93;
+             &amp;#91;&amp;quot;Geneva&amp;quot; 7120&amp;#93;
+             &amp;#91;&amp;quot;Little River&amp;quot; 2100&amp;#93;
+             &amp;#91;&amp;quot;Macon&amp;quot; 190&amp;#93;
+             &amp;#91;&amp;quot;Weogufka&amp;quot; 240&amp;#93;&amp;#93;&amp;#41;
+; #'public-land-finder/al-sfs
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Our utility will map over the data structure and build a vector of hashmaps that we can pass into &lt;code&gt;insert-multi!&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn load-state-forests! 
+  &amp;#91;sf-vec s&amp;#93;
+  &amp;#40;let &amp;#91;state-id &amp;#40;id-for-state s&amp;#41;&amp;#93;
+    &amp;#40;j/insert-multi! db :state&amp;#95;forest &amp;#40;map #&amp;#40;hash-map :state&amp;#95;id state-id
+                                                      :state&amp;#95;forest &amp;#40;first %1&amp;#41;
+                                                      :acres &amp;#40;second %1&amp;#41;&amp;#41; sf-vec&amp;#41;&amp;#41;&amp;#41;&amp;#41;
+; #'public-land-finder/load-state-forests!
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And now we can load Alabama's state forest data:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;load-state-forests! al-sfs &amp;quot;AL&amp;quot;&amp;#41;
+; &amp;#40;{:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 1, :state&amp;#95;forest &amp;quot;Choccolocco&amp;quot;, :acres 4536}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 2, :state&amp;#95;forest &amp;quot;Hauss&amp;quot;, :acres 319}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 3, :state&amp;#95;forest &amp;quot;Geneva&amp;quot;, :acres 7120} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 4, :state&amp;#95;forest &amp;quot;Little River&amp;quot;, :acres 2100}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 5, :state&amp;#95;forest &amp;quot;Macon&amp;quot;, :acres 190} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 6, :state&amp;#95;forest &amp;quot;Weogufka&amp;quot;, :acres 240}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;deleting&amp;#95;records&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Deleting Records&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Let's go over how to delete records.  First, we'll blow away a &lt;code&gt;state&amp;#95;forest&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/delete! db :state&amp;#95;forest &amp;#91;&amp;quot;state&amp;#95;forest = ?&amp;quot; &amp;quot;Macon&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;1&amp;#41;
+
+&amp;#40;j/query db &amp;#91;&amp;quot;SELECT &amp;#42; FROM state&amp;#95;forest WHERE state&amp;#95;forest = ?&amp;quot; &amp;quot;Macon&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Nice.  Now let's see what happens if we delete a &lt;code&gt;state&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/delete! db :state &amp;#91;&amp;quot;abrv = ?&amp;quot; &amp;quot;AL&amp;quot;&amp;#93;&amp;#41;
+; An exception was caused by: org.postgresql.util.PSQLException 
+;  &amp;#40;ERROR: update or delete on table &amp;quot;state&amp;quot; violates foreign key constraint 
+;  &amp;quot;state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;quot; on table &amp;quot;state&amp;#95;forest&amp;quot; 
+;  Detail: Key &amp;#40;state&amp;#95;id&amp;#41;=&amp;#40;1&amp;#41; is still referenced from table &amp;quot;state&amp;#95;forest&amp;quot;.&amp;#41;
+; ...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Looks like we didn't establish a deletion policy for our &lt;code&gt;state&amp;#95;forest&lt;/code&gt; Foreign Key constraint!  Typically we'd want all the child records to be deleted if the parent is deleted.  Our ERD should look something like this:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage01.png&quot; alt=&quot;ERD v02&quot; /&gt;&lt;/p&gt;&lt;p&gt;Let's completely blow away the &lt;code&gt;state&amp;#95;forest&lt;/code&gt; table and rebuild it properly.  First we'll use the &lt;code&gt;drop-table-ddl&lt;/code&gt; form to drop the table:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#40;j/drop-table-ddl :state&amp;#95;forest&amp;#41;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;With that done, let's rebuild it with the proper &lt;code&gt;UPDATE&lt;/code&gt; and &lt;code&gt;DELETE&lt;/code&gt; policies in place (the &lt;code&gt;UPDATE&lt;/code&gt; policy handles an event where the Foreign Key value on the parent object changes).  We want both policies to &lt;code&gt;CASCADE&lt;/code&gt;, which means automatically &lt;code&gt;UPDATE&lt;/code&gt; or &lt;code&gt;DELETE&lt;/code&gt; the child to mirror the parent:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;#40;j/create-table-ddl :state&amp;#95;forest &amp;#91;
+&amp;#91;:state&amp;#95;id :int &amp;quot;REFERENCES state ON UPDATE CASCADE ON DELETE CASCADE&amp;quot;&amp;#93;
+                                                   &amp;#91;:state&amp;#95;forest&amp;#95;id :serial &amp;quot;PRIMARY KEY&amp;quot;&amp;#93;
+                                                   &amp;#91;:state&amp;#95;forest &amp;quot;VARCHAR&amp;#40;256&amp;#41;&amp;quot;&amp;#93;
+                                                   &amp;#91;:acres :int&amp;#93;&amp;#93;&amp;#41;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Next we repopulate our &lt;code&gt;state&amp;#95;forest&lt;/code&gt; table:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;load-state-forests! al-sfs &amp;quot;AL&amp;quot;&amp;#41;
+; &amp;#40;{:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 1, :state&amp;#95;forest &amp;quot;Choccolocco&amp;quot;, :acres 4536}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 2, :state&amp;#95;forest &amp;quot;Hauss&amp;quot;, :acres 319}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 3, :state&amp;#95;forest &amp;quot;Geneva&amp;quot;, :acres 7120} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 4, :state&amp;#95;forest &amp;quot;Little River&amp;quot;, :acres 2100}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 5, :state&amp;#95;forest &amp;quot;Macon&amp;quot;, :acres 190} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 6, :state&amp;#95;forest &amp;quot;Weogufka&amp;quot;, :acres 240}&amp;#41;
+
+&amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;forest&amp;#95;id FROM state&amp;#95;forest&amp;quot;&amp;#93; {:result-set-fn count}&amp;#41;
+; 6
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;With our deletion policy set to &lt;code&gt;CASCADE&lt;/code&gt;, if we delete Alabama all of its state forests should go along with it:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/delete! db :state &amp;#91;&amp;quot;abrv = ?&amp;quot; &amp;quot;AL&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;1&amp;#41;
+
+&amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;forest&amp;#95;id FROM state&amp;#95;forest&amp;quot;&amp;#93; {:result-set-fn count}&amp;#41;
+; 0
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;modifying&amp;#95;constraints&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Modifying Constraints&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Dropping the table and rebuilding is fine during development, but typically you wouldn't want to run something so destructive on a production table.  Let's add Alabama back into the &lt;code&gt;state&lt;/code&gt; table and repopulate our &lt;code&gt;state&amp;#95;forests&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/insert! db :state {:state &amp;quot;Alabama&amp;quot; :abrv &amp;quot;AL&amp;quot;}&amp;#41;
+; &amp;#40;{:state&amp;#95;id 8, :state &amp;quot;Alabama&amp;quot;, :abrv &amp;quot;AL&amp;quot;}&amp;#41;
+
+&amp;#40;load-state-forests! al-sfs &amp;quot;AL&amp;quot;&amp;#41;
+; &amp;#40;{:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 1, :state&amp;#95;forest &amp;quot;Choccolocco&amp;quot;, :acres 4536}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 2, :state&amp;#95;forest &amp;quot;Hauss&amp;quot;, :acres 319}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 3, :state&amp;#95;forest &amp;quot;Geneva&amp;quot;, :acres 7120} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 4, :state&amp;#95;forest &amp;quot;Little River&amp;quot;, :acres 2100}
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 5, :state&amp;#95;forest &amp;quot;Macon&amp;quot;, :acres 190} 
+;  {:state&amp;#95;id 1, :state&amp;#95;forest&amp;#95;id 6, :state&amp;#95;forest &amp;quot;Weogufka&amp;quot;, :acres 240}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Next we need to figure out what the auto-generated name for our Foreign Key constraint is since we didn't explicitly set it in our DDL statement:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT constraint&amp;#95;name FROM information&amp;#95;schema.table&amp;#95;constraints WHERE table&amp;#95;name = ?&amp;quot; &amp;quot;state&amp;#95;forest&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:constraint&amp;#95;name &amp;quot;state&amp;#95;forest&amp;#95;pkey&amp;quot;} 
+;  {:constraint&amp;#95;name &amp;quot;state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;quot;} 
+;  {:constraint&amp;#95;name &amp;quot;2200&amp;#95;16898&amp;#95;2&amp;#95;not&amp;#95;null&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Postgres won't let us modify a Foreign Key constraint directly.  We'll need to drop it, then reimplement it:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;quot;ALTER TABLE state&amp;#95;forest DROP CONSTRAINT state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;quot;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We'll run a sanity check to make sure we did in fact drop it:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT constraint&amp;#95;name FROM information&amp;#95;schema.table&amp;#95;constraints WHERE table&amp;#95;name = ?&amp;quot; &amp;quot;state&amp;#95;forest&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:constraint&amp;#95;name &amp;quot;state&amp;#95;forest&amp;#95;pkey&amp;quot;}
+;  {:constraint&amp;#95;name &amp;quot;2200&amp;#95;16935&amp;#95;2&amp;#95;not&amp;#95;null&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let's add the Foreign Key constraint back in, this time we'll set the deletion policy to &lt;code&gt;RESTRICT&lt;/code&gt;, which means it'll throw an error if we try and delete a &lt;code&gt;state&lt;/code&gt; that has &lt;code&gt;state&amp;#95;forest&lt;/code&gt; relations:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;quot;ALTER TABLE state&amp;#95;forest ADD CONSTRAINT state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;#95;new FOREIGN KEY &amp;#40;state&amp;#95;id&amp;#41; REFERENCES state ON DELETE RESTRICT&amp;quot;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now we're back at our original (undesirable) state where the attempt to delete a &lt;code&gt;state&lt;/code&gt; raises an exception:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/delete! db :state &amp;#91;&amp;quot;abrv = ?&amp;quot; &amp;quot;AL&amp;quot;&amp;#93;&amp;#41;
+; An exception was caused by: org.postgresql.util.PSQLException 
+;  &amp;#40;ERROR: update or delete on table &amp;quot;state&amp;quot; violates foreign key constraint 
+;  &amp;quot;state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;#95;new&amp;quot; on table &amp;quot;state&amp;#95;forest&amp;quot; 
+;  Detail: Key &amp;#40;state&amp;#95;id&amp;#41;=&amp;#40;8&amp;#41; is still referenced from table &amp;quot;state&amp;#95;forest&amp;quot;.&amp;#41;
+; ...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now that you know how to &quot;modify&quot; Foreign Key constraints, let's set it back to &lt;code&gt;CASCADE&lt;/code&gt; before moving on:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;quot;ALTER TABLE state&amp;#95;forest DROP CONSTRAINT state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey&amp;#95;new&amp;quot;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+
+&amp;#40;j/execute! db &amp;#91;&amp;quot;ALTER TABLE state&amp;#95;forest ADD CONSTRAINT state&amp;#95;forest&amp;#95;state&amp;#95;id&amp;#95;fkey FOREIGN KEY &amp;#40;state&amp;#95;id&amp;#41; REFERENCES state ON UPDATE CASCADE ON DELETE CASCADE&amp;quot;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;many-to-many&amp;#95;relationships&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Many-To-Many Relationships&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;The final thing I'd like to go over is how to set up a Many-To-Many (or N:M) relationship.  Relational databases represent a N:M relationship using a special table that consists of the Foreign Key relationships and any associated data.&lt;/p&gt;&lt;p&gt;We want to have an &lt;code&gt;activity&lt;/code&gt; table that has records for all the different activities that might be allowed in a &lt;code&gt;state&amp;#95;forest&lt;/code&gt;.  Our revised ERD looks like this:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage02.png&quot; alt=&quot;ERD v02&quot; /&gt;&lt;/p&gt;&lt;p&gt;Let's go ahead and create the new table and add a few records.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;#40;j/create-table-ddl :activity &amp;#91;&amp;#91;:activity&amp;#95;id :serial &amp;quot;PRIMARY KEY&amp;quot;&amp;#93;
+                                               &amp;#91;:activity &amp;quot;VARCHAR&amp;#40;64&amp;#41;&amp;quot;&amp;#93;&amp;#93;&amp;#41;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+
+&amp;#40;j/insert-multi! db :activity &amp;#91;{:activity &amp;quot;hunting&amp;quot;}
+                               {:activity &amp;quot;fishing&amp;quot;}
+                               {:activity &amp;quot;trail riding&amp;quot;}
+                               {:activity &amp;quot;hiking&amp;quot;}
+                               {:activity &amp;quot;primitive camping&amp;quot;}&amp;#93;&amp;#41;
+; &amp;#40;{:activity&amp;#95;id 1, :activity &amp;quot;hunting&amp;quot;}
+;  {:activity&amp;#95;id 2, :activity &amp;quot;fishing&amp;quot;}
+;  {:activity&amp;#95;id 3, :activity &amp;quot;trail riding&amp;quot;} 
+;  {:activity&amp;#95;id 4, :activity &amp;quot;hiking&amp;quot;} 
+;  {:activity&amp;#95;id 5, :activity &amp;quot;primitive camping&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;A &lt;code&gt;state&amp;#95;forest&lt;/code&gt; can allow many different activities, and many state forests can allow the same &lt;code&gt;activity&lt;/code&gt;.  As far as &lt;code&gt;UPDATE&lt;/code&gt; and &lt;code&gt;DELETE&lt;/code&gt; policies, if we delete a &lt;code&gt;state&amp;#95;forest&lt;/code&gt; or an &lt;code&gt;activity&lt;/code&gt; we want all the N:M relationships involving the deleted record to go as well.  Our relationship table DDL looks like this:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/execute! db &amp;#91;&amp;#40;j/create-table-ddl :state&amp;#95;forest&amp;#95;activity &amp;#91;&amp;#91;:state&amp;#95;forest&amp;#95;id :int &amp;quot;REFERENCES state&amp;#95;forest ON UPDATE CASCADE ON DELETE CASCADE&amp;quot;&amp;#93;
+                                                            &amp;#91;:activity&amp;#95;id :int &amp;quot;REFERENCES activity ON UPDATE CASCADE ON DELETE CASCADE&amp;quot;&amp;#93;
+                                                            &amp;#91;&amp;quot;CONSTRAINT state&amp;#95;forest&amp;#95;activity&amp;#95;pkey PRIMARY KEY &amp;#40;state&amp;#95;forest&amp;#95;id, activity&amp;#95;id&amp;#41;&amp;quot;&amp;#93;&amp;#93;&amp;#41;&amp;#93;&amp;#41;
+; &amp;#91;0&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;While we could certainly build up our relationship table manually by querying the primary keys of &lt;code&gt;state&amp;#95;forest&lt;/code&gt; and &lt;code&gt;activity&lt;/code&gt; then inserting the new records into our relationship table, it'll be a common enough operation that a few helper functions are more than justified.&lt;/p&gt;&lt;p&gt;First we'll need one to get the &lt;code&gt;state&amp;#95;forest&amp;#95;id&lt;/code&gt;.  Retrieving an id is so common I'd probably create a more general function that would work on any record when it's time to create the actual application, but for now we'll just create another table specific form:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn id-for-state-forest
+  &amp;#91;name&amp;#93;
+  &amp;#40;j/query db &amp;#91;&amp;quot;SELECT state&amp;#95;forest&amp;#95;id FROM state&amp;#95;forest where state&amp;#95;forest = ?&amp;quot; &amp;#40;str/capitalize name&amp;#41;&amp;#93;
+           {:row-fn :state&amp;#95;forest&amp;#95;id :result-set-fn first}&amp;#41;&amp;#41;
+
+; #'public-land-finder/id-for-state-forest
+
+&amp;#40;id-for-state-forest &amp;quot;Geneva&amp;quot;&amp;#41;
+; 9
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now we'll create another table specific form for &lt;code&gt;activity&amp;#95;id&lt;/code&gt;:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn id-for-activity 
+  &amp;#91;name&amp;#93;
+  &amp;#40;j/query db &amp;#91;&amp;quot;SELECT activity&amp;#95;id FROM activity where activity = ?&amp;quot; &amp;#40;str/lower-case name&amp;#41;&amp;#93;
+           {:row-fn :activity&amp;#95;id :result-set-fn first}&amp;#41;&amp;#41;
+; #'public-land-finder/id-for-activity
+
+&amp;#40;id-for-activity &amp;quot;fishing&amp;quot;&amp;#41;
+; 2
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Let's take another look at what our full &lt;code&gt;activity&lt;/code&gt; query result set looks like:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;j/query db &amp;#91;&amp;quot;SELECT &amp;#42; FROM activity&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:activity&amp;#95;id 1, :activity &amp;quot;hunting&amp;quot;}
+;  {:activity&amp;#95;id 2, :activity &amp;quot;fishing&amp;quot;}
+;  {:activity&amp;#95;id 3, :activity &amp;quot;trail riding&amp;quot;} 
+;  {:activity&amp;#95;id 4, :activity &amp;quot;hiking&amp;quot;} 
+;  {:activity&amp;#95;id 5, :activity &amp;quot;primitive camping&amp;quot;}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;adding&amp;#95;n:m&amp;#95;relationships&amp;#95;(conveniently)&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Adding N:M Relationships (conveniently)&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Ideally, I'd like to be able to specify the name of a &lt;code&gt;state&amp;#95;forest&lt;/code&gt; then pass in a vector of activities that are allowed.  For this to work, we'll need &lt;code&gt;activity&lt;/code&gt; row maps to use &lt;code&gt;activity&lt;/code&gt; as the key and &lt;code&gt;activity&amp;#95;id&lt;/code&gt; as the value.  It'll make sense in a second, so just bear with me.  Here's the remapping function:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn activity-remapper 
+  &amp;#91;m&amp;#93; 
+  &amp;#40;hash-map &amp;#40;keyword &amp;#40;:activity m&amp;#41;&amp;#41; &amp;#40;:activity&amp;#95;id m&amp;#41;&amp;#41;&amp;#41;
+; #'public-land-finder/activity-remapper
+
+&amp;#40;activity-remapper {:activity&amp;#95;id 1, :activity &amp;quot;hunting&amp;quot;}&amp;#41;
+; {:hunting 1}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Finally we'll create our new form for building &lt;code&gt;state&amp;#95;forest&lt;/code&gt; &lt;code&gt;activity&lt;/code&gt; relationships:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn load-state-forest-activities!
+  &amp;#91;sf-name activities&amp;#93;
+  &amp;#40;let &amp;#91;sf-id &amp;#40;id-for-state-forest sf-name&amp;#41;
+        activity-map &amp;#40;apply merge &amp;#40;j/query db &amp;#91;&amp;quot;SELECT &amp;#42; FROM activity&amp;quot;&amp;#93;{:row-fn activity-remapper}&amp;#41;&amp;#41;&amp;#93;
+    &amp;#40;j/insert-multi! db :state&amp;#95;forest&amp;#95;activity 
+                     &amp;#40;map #&amp;#40;hash-map :state&amp;#95;forest&amp;#95;id sf-id
+                                     :activity&amp;#95;id &amp;#40;&amp;#40;keyword %&amp;#41; activity-map&amp;#41;&amp;#41; activities&amp;#41;&amp;#41;&amp;#41;&amp;#41;
+; #'public-land-finder/load-state-forest-activities!
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now we can (more) easily add new relationships:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;load-state-forest-activities! &amp;quot;Geneva&amp;quot; &amp;#91;&amp;quot;hunting&amp;quot; &amp;quot;fishing&amp;quot; &amp;quot;trail riding&amp;quot; &amp;quot;hiking&amp;quot; &amp;quot;primitive camping&amp;quot;&amp;#93;&amp;#41;
+; &amp;#40;{:state&amp;#95;forest&amp;#95;id 9, :activity&amp;#95;id 1} 
+;  {:state&amp;#95;forest&amp;#95;id 9, :activity&amp;#95;id 2} 
+;  {:state&amp;#95;forest&amp;#95;id 9, :activity&amp;#95;id 3} 
+;  {:state&amp;#95;forest&amp;#95;id 9, :activity&amp;#95;id 4} 
+;  {:state&amp;#95;forest&amp;#95;id 9, :activity&amp;#95;id 5}&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;querying&amp;#95;n:m&amp;#95;relationships&amp;#95;(conveniently)&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Querying N:M Relationships (conveniently)&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Nice.  Now we just need a convenient way to get our data back out.  I'd like a function that accepts a &lt;code&gt;state&amp;#95;forest&lt;/code&gt; and returns a sequence of activities.  Since our relationship table stores the id values, let's create a helper function that will perform the &lt;code&gt;activity&lt;/code&gt; lookup for an id: &lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn name-for-activity-id 
+  &amp;#91;id&amp;#93; 
+  &amp;#40;j/query db &amp;#91;&amp;quot;SELECT activity FROM activity WHERE activity&amp;#95;id = ?&amp;quot; id&amp;#93; {:row-fn :activity}&amp;#41;&amp;#41;
+; #'public-land-finder/name-for-activity-id
+
+&amp;#40;name-for-activity-id 2&amp;#41;
+; &amp;#40;&amp;quot;fishing&amp;quot;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The &lt;code&gt;activity&lt;/code&gt; query itself will need to use the &lt;code&gt;IN&lt;/code&gt; sql condition.  Passing a parameter list into the normal query like we've done elsewhere doesn't work since the underlying JDBC library can't infer the datatype.  Since the list of activity ids is generated interally we don't really have to worry about a malicious user injecting raw SQL.  That being the case, I'll just use a string format function to build the query.  If SQL injection is a concern, we'd have to go through hassle of extending the underlying protocol to convery clojure data types into a format that the underlying JDBC library understands.  But for this example, &lt;code&gt;format&lt;/code&gt; is fine:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;&amp;#40;defn query-activities-for-sf 
+  &amp;#91;sf-name&amp;#93;
+  &amp;#40;let &amp;#91;act-ids &amp;#40;j/query db &amp;#91;&amp;quot;SELECT activity&amp;#95;id FROM state&amp;#95;forest&amp;#95;activity WHERE state&amp;#95;forest&amp;#95;id = ?&amp;quot; 
+                             &amp;#40;id-for-state-forest sf-name&amp;#41;&amp;#93;{:row-fn :activity&amp;#95;id}&amp;#41;&amp;#93;
+    &amp;#40;j/query db &amp;#91;&amp;#40;format &amp;quot;SELECT activity FROM activity WHERE activity&amp;#95;id IN &amp;#40;%s&amp;#41;&amp;quot; 
+                         &amp;#40;str/join &amp;quot;,&amp;quot; act-ids&amp;#41;&amp;#41;&amp;#93;{:row-fn :activity}&amp;#41;&amp;#41;&amp;#41;
+; #'public-land-finder/query-activities-for-sf
+
+&amp;#40;query-activities-for-sf &amp;quot;Geneva&amp;quot;&amp;#41;
+; &amp;#40;&amp;quot;hunting&amp;quot; &amp;quot;fishing&amp;quot; &amp;quot;trail riding&amp;quot; &amp;quot;hiking&amp;quot; &amp;quot;primitive camping&amp;quot;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;conclusion&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Conclusion&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;As you can see, &lt;code&gt;clojure.java.jdbc&lt;/code&gt; is pretty low level.  We're still writing a fair amount of raw SQL to get our work done.  There are a few other Clojure libraries that offer SQL DSLs at a higher level of abstraction.  While it might make sense to go with one of the other libraries, they are all built on top of &lt;code&gt;clojure.java.jdbc&lt;/code&gt; so it's worth understanding how they work under the hood.  However, if you are comfortable working with SQL and understand the risks of SQL injection attacks, &lt;code&gt;clojure.java.jdbc&lt;/code&gt; might be exactly what you want.&lt;/p&gt;
+</description>
+<enclosure>
+
+</enclosure>
+<pubDate>
+Sat, 28 Jan 2017 00:00:00 -0500
+</pubDate>
+</item>
 <item>
 <guid>
 http://peterstratton.com/posts-output/2017-01-04-algorithms-logarithms-and-big-o/
