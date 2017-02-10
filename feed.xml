@@ -12,7 +12,7 @@ http://peterstratton.com/
 A record of things I'd like not to forget, with the added potential to help others.
 </description>
 <lastBuildDate>
-Thu, 09 Feb 2017 21:08:34 -0500
+Thu, 09 Feb 2017 21:12:12 -0500
 </lastBuildDate>
 <generator>
 clj-rss
@@ -28,7 +28,7 @@ http://peterstratton.com/posts-output/2017-02-09-linear-search/
 The Linear Search Algorithm
 </title>
 <description>
-&lt;hr/&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;introduction&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Self-taught developers tend to have a very pragmatic approach to software development.  We learnt from projects, tutorials, practical courses, and technical books.  There's nothing wrong with that.  But, we're missing some of the fundamentals that traditional Computer Science majors get during their coursework.  The goal of this series is to expose self-taught developers to algorithm design and anaylsis.  This post covers Linear Search, one of the most commonly used algorithms in computer science.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;linear&amp;#95;search&amp;#95;-&amp;#95;&lt;code&gt;o&amp;#40;n&amp;#41;&amp;#95;complexity&lt;/code&gt;&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Linear Search - &lt;code&gt;O&amp;#40;n&amp;#41; Complexity&lt;/code&gt;&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Search functions find the position of an item in a list.  Linear Search is the simplest form of search. It simply starts at the beginning and examines every item until it finds a match.  The worst case scenario would be when the item being searched for is at the very end of the list.  Here's a visual representation of linear search across a 15 element sequence where we'll looking for the value 9:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/LinearSearch/LinearSearch.png&quot; alt=&quot;Linear Search&quot; /&gt;&lt;/p&gt;&lt;p&gt;A home-grown linear search implementation in Python might look something like this:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;my&amp;#95;list = &amp;#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&amp;#93;
+&lt;hr/&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;introduction&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Self-taught developers tend to have a very pragmatic approach to software development.  We learnt from projects, tutorials, practical courses, and technical books.  There's nothing wrong with that.  But, we're missing some of the fundamentals that traditional Computer Science majors get during their coursework.  The goal of this series is to expose self-taught developers to algorithm design and anaylsis.  This post covers Linear Search, one of the most commonly used algorithms in computer science.&lt;/p&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;linear&amp;#95;search&amp;#95;-&amp;#95;&lt;code&gt;o&amp;#40;n&amp;#41;&amp;#95;complexity&lt;/code&gt;&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Linear Search - &lt;code&gt;O&amp;#40;n&amp;#41; Complexity&lt;/code&gt;&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;Search functions find the position of an item in a list.  Linear Search is the simplest form of search. It simply starts at the beginning and examines every item until it finds a match.  The worst case scenario would be when the item being searched for is at the very end of the list.  Here's a visual representation of linear search across a 15 element sequence where we're looking for the value 9:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/LinearSearch/LinearSearch.png&quot; alt=&quot;Linear Search&quot; /&gt;&lt;/p&gt;&lt;p&gt;A home-grown linear search implementation in Python might look something like this:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;python&quot;&gt;my&amp;#95;list = &amp;#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&amp;#93;
 
 def linear&amp;#95;search&amp;#40;target, src&amp;#95;list&amp;#41;:
     for i in range&amp;#40;0, len&amp;#40;src&amp;#95;list&amp;#41;&amp;#41;:
@@ -44,6 +44,12 @@ linear&amp;#95;search&amp;#40;42, my&amp;#95;list&amp;#41;  # ValueError
 my&amp;#95;list.index&amp;#40;9&amp;#41;   # 8
 my&amp;#95;list.index&amp;#40;1&amp;#41;   # 0
 my&amp;#95;list.index&amp;#40;42&amp;#41;  # ValueError
+
+# since strings Sequence Types, we can call index on them as well
+'foobarbaz'.index&amp;#40;'r'&amp;#41;  # 5
+
+# it's worth remembering that linear search returns the position of the first element it matches on
+'foobarbaz'.index&amp;#40;'b'&amp;#41;  # 3
 &lt;/code&gt;&lt;/pre&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;summary&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Summary&lt;/strong&gt;&lt;/h4&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Pros&lt;/th&gt;&lt;th&gt;Cons&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;super simple to implement&lt;/td&gt;&lt;td&gt;slower than most other forms of search&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;fairly performant&lt;/td&gt;&lt;td&gt;scales linearly&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;works on unsorted lists&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;memory efficient (doesn't require copying)&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;h4&gt;&lt;a name=&quot;&lt;strong&gt;conclusion&lt;/strong&gt;&quot;&gt;&lt;/a&gt;&lt;strong&gt;Conclusion&lt;/strong&gt;&lt;/h4&gt;&lt;p&gt;The fact that linear search works on unsorted lists is probably its most compelling feature.  You'll use it all the time, and it's a great example of O(n) algorithmic complexity.  Just remember, any time you have to look at every item in a sequence once (and only once), it's O(n).&lt;br /&gt;&lt;/p&gt;&lt;p&gt;As usual, feel free to hit me up on &lt;a href='https://twitter.com/halescode'&gt;Twitter&lt;/a&gt; or send me a message on &lt;a href='https://www.linkedin.com/in/peterstratton'&gt;LinkedIn&lt;/a&gt; if you have any questions!&lt;/p&gt;
 </description>
 <enclosure>
