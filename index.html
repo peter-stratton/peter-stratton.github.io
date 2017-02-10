@@ -67,270 +67,28 @@
                 
 <div id="post">
     <div class="blog-post">
-  <h3>Postgres and Clojure Using clojure.java.jdbc <small>1/28/17</small></h3>
+  <h3>The Linear Search Algorithm <small>2/9/17</small></h3>
 </div>
 
 <div>
     
-    <hr/><h4><a name="<strong>introduction</strong>"></a><strong>Introduction</strong></h4><p>In this post I'll be going over how to use the <code>clojure.java.jdbc</code> library to work with PostgreSQL.  We'll touch upon all the basic CRUD operations, as well as how to implement Foreign Key constraints, define update and deletion policies, and build Many-To-Many relationships.<br /></p><p>Being fairly low-level, <code>clojure.java.jdbc</code> presents a very thing abstraction layer and we'll often we passing in parameterized (and sometimes raw) SQL into our forms.  There is a corresponding video series on YouTube if you prefer watching over reading.<br /></p><ol><li><a href='https://youtu.be/yjS0jHr_-2g'>Postgres & Clojure Using clojure.java.jdbc - Part 1 of 3 </a></li><li><a href='https://youtu.be/XKv2yg_2EX4'>Postgres & Clojure Using clojure.java.jdbc - Part 2 of 3 </a></li><li><a href='https://youtu.be/4dJzrrrbc7Y'>Postgres & Clojure Using clojure.java.jdbc - Part 3 of 3 </a></li></ol><p>As usual, let me know if you have any questions or problems.</p><h4><a name="<strong>pre-requisites</strong>"></a><strong>Pre-Requisites</strong></h4><ol><li><a href='https://www.postgresql.org/download/'>PostgreSQL</a></li><li><a href='https://leiningen.org/'>Leiningen</a></li></ol><h4><a name="<strong>quick&#95;setup</strong>"></a><strong>Quick Setup</strong></h4><p>If you already have an empty database and don't really care about setting up the Leiningen app, you can just clone the project repository and load the demo worksheet into Gorilla.</p><ol><li>Clone the <a href='https://github.com/peter-stratton/clovids-relational-jdbc'>project repo</a></li><li><code>cd</code> into the newly cloned project and run <code>lein gorilla</code></li><li>Load the <code>clojure-java-jdbc-lib.cljw</code> worksheet from the <code>ws</code> directory into your Gorilla REPL session</li></ol><h4><a name="<strong>how&#95;to&#95;follow&#95;along</strong>"></a><strong>How to Follow Along</strong></h4><p>If you'd prefer to work in the normal clojure REPL, or want to build up your own Gorilla worksheet from scratch, the rest of this post will walk you through the session.  Good luck!</p><h4><a name="<strong>database&#95;setup</strong>"></a><strong>Database Setup</strong></h4><p>First thing's first, we'll need a database.  I'll also be creating a new user since I like to make my local dev environment as close to what I'll be using in production.</p><pre><code class="sql">$ psql
-psql &#40;9.6.1&#41;
-Type &quot;help&quot; for help.
+    <hr/><h4><a name="<strong>introduction</strong>"></a><strong>Introduction</strong></h4><p>Self-taught developers tend to have a very pragmatic approach to software development.  We learnt from projects, tutorials, practical courses, and technical books.  There's nothing wrong with that.  But, we're missing some of the fundamentals that traditional Computer Science majors get during their coursework.  The goal of this series is to expose self-taught developers to algorithm design and anaylsis.  This post covers Linear Search, one of the most commonly used algorithms in computer science.</p><h4><a name="<strong>linear&#95;search&#95;-&#95;<code>o&#40;n&#41;&#95;complexity</code></strong>"></a><strong>Linear Search - <code>O&#40;n&#41; Complexity</code></strong></h4><p>Search functions find the position of an item in a list.  Linear Search is the simplest form of search. It simply starts at the beginning and examines every item until it finds a match.  The worst case scenario would be when the item being searched for is at the very end of the list.  Here's a visual representation of linear search across a 15 element sequence where we'll looking for the value 9:</p><p><img src="/img/LinearSearch/LinearSearch.png" alt="Linear Search" /></p><p>A home-grown linear search implementation in Python might look something like this:</p><pre><code class="python">my&#95;list = &#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&#93;
 
-postgres=# CREATE USER public&#95;land&#95;user WITH PASSWORD 'keeppubliclandinpublichands';
-CREATE ROLE
-postgres=# CREATE DATABASE public&#95;land OWNER public&#95;land&#95;user;
-CREATE DATABASE
-postgres=# \c public&#95;land
-You are now connected to database &quot;public&#95;land&quot; as user &quot;pstratton&quot;.
-postgres=# \dt
-No relations found.
-postgres=# \q
-$
-</code></pre><h4><a name="<strong>leiningen&#95;project&#95;setup</strong>"></a><strong>Leiningen Project Setup</strong></h4><p>Let's create a new project using the built-in <code>app</code> template:</p><pre><code class="bash">$ lein new app public-land-finder
-</code></pre><p>Next we'll need to add our project dependencies.  If we navigate to the <a href='https://github.com/clojure/java.jdbc'>clojure.java.jdbc</a> repo we can see the Lein dependency information listed, so lets add that to the <code>:dependencies</code> section of our <code>project.clj</code> file first:</p><pre><code class="clojure">...
-:dependencies &#91;&#91;org.clojure/clojure &quot;1.8.0&quot;&#93;
-               &#91;org.clojure/java.jdbc &quot;0.7.0-alpha1&quot;&#93;&#93;
-...
-</code></pre><p>We're also going to need to pull down the JDBC driver for whichever database we'll be using, in our case, PostgreSQL.  Let's follow the <a href='http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.postgresql%22%20AND%20a%3A%22postgresql%22'>Maven Central</a> link and sort out which version we need.  It looks like 9.4.1212 is the latest, so let's add that:</p><pre><code class="clojure">...
-:dependencies &#91;&#91;org.clojure/clojure &quot;1.8.0&quot;&#93;
-               &#91;org.clojure/java.jdbc &quot;0.7.0-alpha1&quot;&#93;
-               &#91;org.postgresql/postgresql &quot;9.4.1212&quot;&#93;&#93;
-...
-</code></pre><p>Finally, let's add the <code>lein-gorilla</code> plugin so we can do all of our work in the gorilla REPL.</p><pre><code class="clojure">:dependencies &#91;&#91;org.clojure/clojure &quot;1.8.0&quot;&#93;
-               &#91;org.clojure/java.jdbc &quot;0.7.0-alpha1&quot;&#93;
-               &#91;org.postgresql/postgresql &quot;9.4.1212&quot;&#93;&#93;
-:plugins &#91;&#91;lein-gorilla &quot;0.4.0&quot;&#93;&#93;
-...
-</code></pre><h4><a name="<strong>repl&#95;time!</strong>"></a><strong>REPL Time!</strong></h4><p>Fire up a Gorilla REPL session and we can get started:</p><pre><code class="bash">$ lein gorilla
-Gorilla-REPL: 0.4.0
-Started nREPL server on port 59902
-Running at http://127.0.0.1:59905/worksheet.html .
-Ctrl+C to exit.
-</code></pre><p>Then open the HTML link to where the server is running, in my case <code>http://127.0.0.1:59905/worksheet.html</code>.</p><p>Let's set a new namespace and do our imports.  We'll need the <code>clojure.java.jdbc</code> library, of course.  We'll also want to alias <code>clojure.string</code> for use later.</p><pre><code class="clojure">&#40;ns public-land-finder
-  &#40;:require &#91;clojure.string :as str&#93;
-            &#91;clojure.java.jdbc :as j&#93;&#41;&#41;
-; nil
-</code></pre><h4><a name="<strong>creating&#95;tables</strong>"></a><strong>Creating Tables</strong></h4><p>Now that we've imported <code>clojure.java.jdbc</code> library, we can create a new <code>db-spec</code> for our <code>public&#95;land</code> database:</p><pre><code class="clojure">&#40;def db {:dbtype &quot;postgresql&quot;
-         :dbname &quot;public&#95;land&quot;
-         :host &quot;localhost&quot;
-         :user &quot;public&#95;land&#95;user&quot;
-         :password &quot;keeppubliclandinpublichands&quot;}&#41;
-; #'public-land-finder/db
-</code></pre><p>Our nascent project datastore will only have two tables: <code>state</code> and <code>state&#95;forest</code>.  Here's the ERD:</p><p><img src="/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage00.png" alt="ERD v01" /></p><p>Next we'll use the <code>create-table-ddl</code> form to auto-generate the SQL to create our <code>State</code> table:</p><pre><code class="clojure">&#40;def state-sql &#40;j/create-table-ddl :state &#91;&#91;:state&#95;id :serial &quot;PRIMARY KEY&quot;&#93;
-                                           &#91;:state &quot;VARCHAR&#40;32&#41;&quot;&#93;
-                                           &#91;:abrv &quot;VARCHAR&#40;2&#41;&quot;&#93;&#93;&#41;&#41;
-; #'public-land-finder/state-sql
-</code></pre><p>Let's take a look at the the generated ddl:</p><pre><code class="clojure">&#40;println state-sql&#41;
-; CREATE TABLE state &#40;state&#95;id serial PRIMARY KEY, state VARCHAR&#40;32&#41;, abrv VARCHAR&#40;2&#41;&#41;
-</code></pre><p>Everything looks good, so we'll go ahead and <code>execute!</code> it:</p><pre><code class="clojure">&#40;j/execute! db &#91;state-sql&#93;&#41;
-; &#91;0&#93;
-</code></pre><p>Then add our first record to the new table:</p><pre><code class="clojure">&#40;j/insert! db :state {:state &quot;Alabama&quot; :abrv &quot;AL&quot;}&#41;
-; &#40;{:state&#95;id 1, :state &quot;Alabama&quot;, :abrv &quot;AL&quot;}&#41;
-</code></pre><h4><a name="<strong>running&#95;queries</strong>"></a><strong>Running Queries</strong></h4><p>Let's run a simple query to retrieve our first record:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT &#42; FROM state WHERE state = ?&quot; &quot;Alabama&quot;&#93;&#41;
-; &#40;{:state&#95;id 1, :state &quot;Alabama&quot;, :abrv &quot;AL&quot;}&#41;
-</code></pre><p>Since Postgres returns the full record after a successful <code>insert!</code>, our output is exactly the same.  Let's add some more state records.</p><h4><a name="<strong>adding&#95;multiple&#95;records</strong>"></a><strong>Adding Multiple Records</strong></h4><p>There are a few ways to add multiple records in a single query.  The <code>insert-multi!</code> form takes a vector of hash-maps and returns the row data that was inserted:</p><pre><code class="clojure">&#40;j/insert-multi! db :state &#91;{:state &quot;Alaska&quot; :abrv &quot;AK&quot;}
-                            {:state &quot;Arizona&quot; :abrv &quot;AZ&quot;}
-                            {:state &quot;Arkansas&quot; :abrv &quot;AR&quot;}&#93;&#41;
-; &#40;{:state&#95;id 2, :state &quot;Alaska&quot;, :abrv &quot;AK&quot;} 
-;  {:state&#95;id 3, :state &quot;Arizona&quot;, :abrv &quot;AZ&quot;}
-;  {:state&#95;id 4, :state &quot;Arkansas&quot;, :abrv &quot;AR&quot;}&#41;
-</code></pre><p>The <code>db-do-prepared</code> form accepts a parameterized SQL string and then a series of parameter groups.  Instead of returning row data, it returns a seq of update counts:</p><pre><code class="clojure">&#40;j/db-do-prepared db &#91;&quot;INSERT INTO state &#40;state, abrv&#41; VALUES &#40;?, ?&#41;&quot;
-                      &#91;&quot;California&quot; &quot;CA&quot;&#93;
-                      &#91;&quot;Colorado&quot; &quot;CO&quot;&#93;
-                      &#91;&quot;Connecticut&quot; &quot;CN&quot;&#93;&#93; {:multi? true}&#41;
-; &#40;1 1 1&#41;
-</code></pre><h4><a name="<strong>updating&#95;records</strong>"></a><strong>Updating Records</strong></h4><p>Looks like we've made a mistake and used "CN" rather than "CT" for Connecticut's abbreviation, so let's fix that:</p><pre><code class="clojure">&#40;j/update! db :state {:abrv &quot;CT&quot;} &#91;&quot;abrv = ?&quot; &quot;CN&quot;&#93;&#41;
-; &#40;1&#41;
-</code></pre><p>then run a sanity check to make sure everything is cool:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT abrv FROM state WHERE state = ?&quot; &quot;Connecticut&quot;&#93;&#41;
-; &#40;{:abrv &quot;CT&quot;}&#41;
-</code></pre><h4><a name="<strong>query&#95;result&#95;set&#95;processing</strong>"></a><strong>Query Result Set Processing</strong></h4><p>We can specify a function to be run against either the entire query result set and/or each individual row.  Let's look at <code>result-set-fn</code> first.  In this example we're going to use the <code>count</code> function that is part of the <code>clojure.core</code> library.</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT state&#95;id FROM state&quot;&#93; {:result-set-fn count}&#41;
-; 7
-</code></pre><p>Normally a query would return a result set of hash-maps.  If we wanted a sequence of just the state names, we could pass the <code>:state</code> key in as the <code>row-fn</code>:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT state FROM state&quot;&#93; {:row-fn :state}&#41;
-; &#40;&quot;Alabama&quot; &quot;Alaska&quot; &quot;Arizona&quot; &quot;Arkansas&quot; &quot;California&quot; &quot;Colorado&quot; &quot;Connecticut&quot;&#41;
-</code></pre><p>We can use row and result set functions in the same query.  Let's write a utility function to retrieve a <code>state&#95;id</code> by its <code>abrv</code> value or full name:</p><pre><code class="clojure">&#40;defn id-for-state 
-  &#91;s&#93;
-  &#40;if &#40;= 2 &#40;count s&#41;&#41;
-    &#40;j/query db &#91;&quot;SELECT state&#95;id FROM state where abrv = ?&quot; s&#93; 
-             {:row-fn :state&#95;id :result-set-fn first}&#41;
-    &#40;j/query db &#91;&quot;SELECT state&#95;id FROM state where state = ?&quot; s&#93;
-             {:row-fn :state&#95;id :result-set-fn first}&#41;&#41;&#41;
-; #'public-land-finder/id-for-state
-</code></pre><pre><code class="clojure">&#40;id-for-state &quot;California&quot;&#41;
-; 5
-&#40;id-for-state &quot;AK&quot;&#41;
-; 2
-</code></pre><h4><a name="<strong>foreign&#95;key&#95;constraints</strong>"></a><strong>Foreign Key Constraints</strong></h4><p>Now that we have our <code>states</code> table started, let's add a <code>state&#95;forest</code> table.  We'll want each <code>state&#95;forest</code> to include a Foreign Key constraint to the state in which it's located.  We do this by using <code>REFERENCES</code>.  Since we want to use the <code>state</code> table's primary key, we only have to specify the name of the table.</p><p>We'll create the DDL and <code>execute!</code> it in the same form this time:</p><pre><code class="clojure">&#40;j/execute! db &#91;&#40;j/create-table-ddl :state&#95;forest &#91;&#91;:state&#95;id :int &quot;REFERENCES state&quot;&#93;
-                                                   &#91;:state&#95;forest&#95;id :serial &quot;PRIMARY KEY&quot;&#93;
-                                                   &#91;:state&#95;forest &quot;VARCHAR&#40;256&#41;&quot;&#93;
-                                                   &#91;:acres :int&#93;&#93;&#41;&#93;&#41;
-&#91;0&#93;
-</code></pre><p>Let's create a little utility function to facilitate loading <code>state&#95;forest</code> records from a simple <code>&#91;state&#95;forest acres&#93;</code> data structure.  Here's Alabama's data set:</p><pre><code class="clojure">&#40;def al-sfs &#91;&#91;&quot;Choccolocco&quot; 4536&#93;
-             &#91;&quot;Hauss&quot; 319&#93;
-             &#91;&quot;Geneva&quot; 7120&#93;
-             &#91;&quot;Little River&quot; 2100&#93;
-             &#91;&quot;Macon&quot; 190&#93;
-             &#91;&quot;Weogufka&quot; 240&#93;&#93;&#41;
-; #'public-land-finder/al-sfs
-</code></pre><p>Our utility will map over the data structure and build a vector of hashmaps that we can pass into <code>insert-multi!</code>:</p><pre><code class="clojure">&#40;defn load-state-forests! 
-  &#91;sf-vec s&#93;
-  &#40;let &#91;state-id &#40;id-for-state s&#41;&#93;
-    &#40;j/insert-multi! db :state&#95;forest &#40;map #&#40;hash-map :state&#95;id state-id
-                                                      :state&#95;forest &#40;first %1&#41;
-                                                      :acres &#40;second %1&#41;&#41; sf-vec&#41;&#41;&#41;&#41;
-; #'public-land-finder/load-state-forests!
-</code></pre><p>And now we can load Alabama's state forest data:</p><pre><code class="clojure">&#40;load-state-forests! al-sfs &quot;AL&quot;&#41;
-; &#40;{:state&#95;id 1, :state&#95;forest&#95;id 1, :state&#95;forest &quot;Choccolocco&quot;, :acres 4536}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 2, :state&#95;forest &quot;Hauss&quot;, :acres 319}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 3, :state&#95;forest &quot;Geneva&quot;, :acres 7120} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 4, :state&#95;forest &quot;Little River&quot;, :acres 2100}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 5, :state&#95;forest &quot;Macon&quot;, :acres 190} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 6, :state&#95;forest &quot;Weogufka&quot;, :acres 240}&#41;
-</code></pre><h4><a name="<strong>deleting&#95;records</strong>"></a><strong>Deleting Records</strong></h4><p>Let's go over how to delete records.  First, we'll blow away a <code>state&#95;forest</code>:</p><pre><code class="clojure">&#40;j/delete! db :state&#95;forest &#91;&quot;state&#95;forest = ?&quot; &quot;Macon&quot;&#93;&#41;
-; &#40;1&#41;
+def linear&#95;search&#40;target, src&#95;list&#41;:
+    for i in range&#40;0, len&#40;src&#95;list&#41;&#41;:
+        if src&#95;list&#91;i&#93; == target:
+          return i
+    raise ValueError
+    
+linear&#95;search&#40;9, my&#95;list&#41;   # 8
+linear&#95;search&#40;1, my&#95;list&#41;   # 0
+linear&#95;search&#40;42, my&#95;list&#41;  # ValueError
+</code></pre><p>However, as I've mentioned previously, most programming languages ship with common algorithms already built in. In Python, the Sequence Types implement the <code>index&#40;&#41;</code> method, which performs a linear search similar to our homegrown solution.</p><pre><code class="python">my&#95;list = &#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&#93;
 
-&#40;j/query db &#91;&quot;SELECT &#42; FROM state&#95;forest WHERE state&#95;forest = ?&quot; &quot;Macon&quot;&#93;&#41;
-; &#40;&#41;
-</code></pre><p>Nice.  Now let's see what happens if we delete a <code>state</code>:</p><pre><code class="clojure">&#40;j/delete! db :state &#91;&quot;abrv = ?&quot; &quot;AL&quot;&#93;&#41;
-; An exception was caused by: org.postgresql.util.PSQLException 
-;  &#40;ERROR: update or delete on table &quot;state&quot; violates foreign key constraint 
-;  &quot;state&#95;forest&#95;state&#95;id&#95;fkey&quot; on table &quot;state&#95;forest&quot; 
-;  Detail: Key &#40;state&#95;id&#41;=&#40;1&#41; is still referenced from table &quot;state&#95;forest&quot;.&#41;
-; ...
-</code></pre><p>Looks like we didn't establish a deletion policy for our <code>state&#95;forest</code> Foreign Key constraint!  Typically we'd want all the child records to be deleted if the parent is deleted.  Our ERD should look something like this:</p><p><img src="/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage01.png" alt="ERD v02" /></p><p>Let's completely blow away the <code>state&#95;forest</code> table and rebuild it properly.  First we'll use the <code>drop-table-ddl</code> form to drop the table:</p><pre><code class="clojure">&#40;j/execute! db &#40;j/drop-table-ddl :state&#95;forest&#41;&#41;
-; &#91;0&#93;
-</code></pre><p>With that done, let's rebuild it with the proper <code>UPDATE</code> and <code>DELETE</code> policies in place (the <code>UPDATE</code> policy handles an event where the Foreign Key value on the parent object changes).  We want both policies to <code>CASCADE</code>, which means automatically <code>UPDATE</code> or <code>DELETE</code> the child to mirror the parent:</p><pre><code class="clojure">&#40;j/execute! db &#91;&#40;j/create-table-ddl :state&#95;forest &#91;
-&#91;:state&#95;id :int &quot;REFERENCES state ON UPDATE CASCADE ON DELETE CASCADE&quot;&#93;
-                                                   &#91;:state&#95;forest&#95;id :serial &quot;PRIMARY KEY&quot;&#93;
-                                                   &#91;:state&#95;forest &quot;VARCHAR&#40;256&#41;&quot;&#93;
-                                                   &#91;:acres :int&#93;&#93;&#41;&#93;&#41;
-; &#91;0&#93;
-</code></pre><p>Next we repopulate our <code>state&#95;forest</code> table:</p><pre><code class="clojure">&#40;load-state-forests! al-sfs &quot;AL&quot;&#41;
-; &#40;{:state&#95;id 1, :state&#95;forest&#95;id 1, :state&#95;forest &quot;Choccolocco&quot;, :acres 4536}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 2, :state&#95;forest &quot;Hauss&quot;, :acres 319}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 3, :state&#95;forest &quot;Geneva&quot;, :acres 7120} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 4, :state&#95;forest &quot;Little River&quot;, :acres 2100}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 5, :state&#95;forest &quot;Macon&quot;, :acres 190} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 6, :state&#95;forest &quot;Weogufka&quot;, :acres 240}&#41;
-
-&#40;j/query db &#91;&quot;SELECT state&#95;forest&#95;id FROM state&#95;forest&quot;&#93; {:result-set-fn count}&#41;
-; 6
-</code></pre><p>With our deletion policy set to <code>CASCADE</code>, if we delete Alabama all of its state forests should go along with it:</p><pre><code class="clojure">&#40;j/delete! db :state &#91;&quot;abrv = ?&quot; &quot;AL&quot;&#93;&#41;
-; &#40;1&#41;
-
-&#40;j/query db &#91;&quot;SELECT state&#95;forest&#95;id FROM state&#95;forest&quot;&#93; {:result-set-fn count}&#41;
-; 0
-</code></pre><h4><a name="<strong>modifying&#95;constraints</strong>"></a><strong>Modifying Constraints</strong></h4><p>Dropping the table and rebuilding is fine during development, but typically you wouldn't want to run something so destructive on a production table.  Let's add Alabama back into the <code>state</code> table and repopulate our <code>state&#95;forests</code>:</p><pre><code class="clojure">&#40;j/insert! db :state {:state &quot;Alabama&quot; :abrv &quot;AL&quot;}&#41;
-; &#40;{:state&#95;id 8, :state &quot;Alabama&quot;, :abrv &quot;AL&quot;}&#41;
-
-&#40;load-state-forests! al-sfs &quot;AL&quot;&#41;
-; &#40;{:state&#95;id 1, :state&#95;forest&#95;id 1, :state&#95;forest &quot;Choccolocco&quot;, :acres 4536}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 2, :state&#95;forest &quot;Hauss&quot;, :acres 319}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 3, :state&#95;forest &quot;Geneva&quot;, :acres 7120} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 4, :state&#95;forest &quot;Little River&quot;, :acres 2100}
-;  {:state&#95;id 1, :state&#95;forest&#95;id 5, :state&#95;forest &quot;Macon&quot;, :acres 190} 
-;  {:state&#95;id 1, :state&#95;forest&#95;id 6, :state&#95;forest &quot;Weogufka&quot;, :acres 240}&#41;
-</code></pre><p>Next we need to figure out what the auto-generated name for our Foreign Key constraint is since we didn't explicitly set it in our DDL statement:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT constraint&#95;name FROM information&#95;schema.table&#95;constraints WHERE table&#95;name = ?&quot; &quot;state&#95;forest&quot;&#93;&#41;
-; &#40;{:constraint&#95;name &quot;state&#95;forest&#95;pkey&quot;} 
-;  {:constraint&#95;name &quot;state&#95;forest&#95;state&#95;id&#95;fkey&quot;} 
-;  {:constraint&#95;name &quot;2200&#95;16898&#95;2&#95;not&#95;null&quot;}&#41;
-</code></pre><p>Postgres won't let us modify a Foreign Key constraint directly.  We'll need to drop it, then reimplement it:</p><pre><code class="clojure">&#40;j/execute! db &#91;&quot;ALTER TABLE state&#95;forest DROP CONSTRAINT state&#95;forest&#95;state&#95;id&#95;fkey&quot;&#93;&#41;
-; &#91;0&#93;
-</code></pre><p>We'll run a sanity check to make sure we did in fact drop it:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT constraint&#95;name FROM information&#95;schema.table&#95;constraints WHERE table&#95;name = ?&quot; &quot;state&#95;forest&quot;&#93;&#41;
-; &#40;{:constraint&#95;name &quot;state&#95;forest&#95;pkey&quot;}
-;  {:constraint&#95;name &quot;2200&#95;16935&#95;2&#95;not&#95;null&quot;}&#41;
-</code></pre><p>Let's add the Foreign Key constraint back in, this time we'll set the deletion policy to <code>RESTRICT</code>, which means it'll throw an error if we try and delete a <code>state</code> that has <code>state&#95;forest</code> relations:</p><pre><code class="clojure">&#40;j/execute! db &#91;&quot;ALTER TABLE state&#95;forest ADD CONSTRAINT state&#95;forest&#95;state&#95;id&#95;fkey&#95;new FOREIGN KEY &#40;state&#95;id&#41; REFERENCES state ON DELETE RESTRICT&quot;&#93;&#41;
-; &#91;0&#93;
-</code></pre><p>Now we're back at our original (undesirable) state where the attempt to delete a <code>state</code> raises an exception:</p><pre><code class="clojure">&#40;j/delete! db :state &#91;&quot;abrv = ?&quot; &quot;AL&quot;&#93;&#41;
-; An exception was caused by: org.postgresql.util.PSQLException 
-;  &#40;ERROR: update or delete on table &quot;state&quot; violates foreign key constraint 
-;  &quot;state&#95;forest&#95;state&#95;id&#95;fkey&#95;new&quot; on table &quot;state&#95;forest&quot; 
-;  Detail: Key &#40;state&#95;id&#41;=&#40;8&#41; is still referenced from table &quot;state&#95;forest&quot;.&#41;
-; ...
-</code></pre><p>Now that you know how to "modify" Foreign Key constraints, let's set it back to <code>CASCADE</code> before moving on:</p><pre><code class="clojure">&#40;j/execute! db &#91;&quot;ALTER TABLE state&#95;forest DROP CONSTRAINT state&#95;forest&#95;state&#95;id&#95;fkey&#95;new&quot;&#93;&#41;
-; &#91;0&#93;
-
-&#40;j/execute! db &#91;&quot;ALTER TABLE state&#95;forest ADD CONSTRAINT state&#95;forest&#95;state&#95;id&#95;fkey FOREIGN KEY &#40;state&#95;id&#41; REFERENCES state ON UPDATE CASCADE ON DELETE CASCADE&quot;&#93;&#41;
-; &#91;0&#93;
-</code></pre><h4><a name="<strong>many-to-many&#95;relationships</strong>"></a><strong>Many-To-Many Relationships</strong></h4><p>The final thing I'd like to go over is how to set up a Many-To-Many (or N:M) relationship.  Relational databases represent a N:M relationship using a special table that consists of the Foreign Key relationships and any associated data.</p><p>We want to have an <code>activity</code> table that has records for all the different activities that might be allowed in a <code>state&#95;forest</code>.  Our revised ERD looks like this:</p><p><img src="/img/erd/clj_jdbc/PublicLandFinder_ERD_Stage02.png" alt="ERD v02" /></p><p>Let's go ahead and create the new table and add a few records.</p><pre><code class="clojure">&#40;j/execute! db &#91;&#40;j/create-table-ddl :activity &#91;&#91;:activity&#95;id :serial &quot;PRIMARY KEY&quot;&#93;
-                                               &#91;:activity &quot;VARCHAR&#40;64&#41;&quot;&#93;&#93;&#41;&#93;&#41;
-; &#91;0&#93;
-
-&#40;j/insert-multi! db :activity &#91;{:activity &quot;hunting&quot;}
-                               {:activity &quot;fishing&quot;}
-                               {:activity &quot;trail riding&quot;}
-                               {:activity &quot;hiking&quot;}
-                               {:activity &quot;primitive camping&quot;}&#93;&#41;
-; &#40;{:activity&#95;id 1, :activity &quot;hunting&quot;}
-;  {:activity&#95;id 2, :activity &quot;fishing&quot;}
-;  {:activity&#95;id 3, :activity &quot;trail riding&quot;} 
-;  {:activity&#95;id 4, :activity &quot;hiking&quot;} 
-;  {:activity&#95;id 5, :activity &quot;primitive camping&quot;}&#41;
-</code></pre><p>A <code>state&#95;forest</code> can allow many different activities, and many state forests can allow the same <code>activity</code>.  As far as <code>UPDATE</code> and <code>DELETE</code> policies, if we delete a <code>state&#95;forest</code> or an <code>activity</code> we want all the N:M relationships involving the deleted record to go as well.  Our relationship table DDL looks like this:</p><pre><code class="clojure">&#40;j/execute! db &#91;&#40;j/create-table-ddl :state&#95;forest&#95;activity &#91;&#91;:state&#95;forest&#95;id :int &quot;REFERENCES state&#95;forest ON UPDATE CASCADE ON DELETE CASCADE&quot;&#93;
-                                                            &#91;:activity&#95;id :int &quot;REFERENCES activity ON UPDATE CASCADE ON DELETE CASCADE&quot;&#93;
-                                                            &#91;&quot;CONSTRAINT state&#95;forest&#95;activity&#95;pkey PRIMARY KEY &#40;state&#95;forest&#95;id, activity&#95;id&#41;&quot;&#93;&#93;&#41;&#93;&#41;
-; &#91;0&#93;
-</code></pre><p>While we could certainly build up our relationship table manually by querying the primary keys of <code>state&#95;forest</code> and <code>activity</code> then inserting the new records into our relationship table, it'll be a common enough operation that a few helper functions are more than justified.</p><p>First we'll need one to get the <code>state&#95;forest&#95;id</code>.  Retrieving an id is so common I'd probably create a more general function that would work on any record when it's time to create the actual application, but for now we'll just create another table specific form:</p><pre><code class="clojure">&#40;defn id-for-state-forest
-  &#91;name&#93;
-  &#40;j/query db &#91;&quot;SELECT state&#95;forest&#95;id FROM state&#95;forest where state&#95;forest = ?&quot; &#40;str/capitalize name&#41;&#93;
-           {:row-fn :state&#95;forest&#95;id :result-set-fn first}&#41;&#41;
-
-; #'public-land-finder/id-for-state-forest
-
-&#40;id-for-state-forest &quot;Geneva&quot;&#41;
-; 9
-</code></pre><p>Now we'll create another table specific form for <code>activity&#95;id</code>:</p><pre><code class="clojure">&#40;defn id-for-activity 
-  &#91;name&#93;
-  &#40;j/query db &#91;&quot;SELECT activity&#95;id FROM activity where activity = ?&quot; &#40;str/lower-case name&#41;&#93;
-           {:row-fn :activity&#95;id :result-set-fn first}&#41;&#41;
-; #'public-land-finder/id-for-activity
-
-&#40;id-for-activity &quot;fishing&quot;&#41;
-; 2
-</code></pre><p>Let's take another look at what our full <code>activity</code> query result set looks like:</p><pre><code class="clojure">&#40;j/query db &#91;&quot;SELECT &#42; FROM activity&quot;&#93;&#41;
-; &#40;{:activity&#95;id 1, :activity &quot;hunting&quot;}
-;  {:activity&#95;id 2, :activity &quot;fishing&quot;}
-;  {:activity&#95;id 3, :activity &quot;trail riding&quot;} 
-;  {:activity&#95;id 4, :activity &quot;hiking&quot;} 
-;  {:activity&#95;id 5, :activity &quot;primitive camping&quot;}&#41;
-</code></pre><h4><a name="<strong>adding&#95;n:m&#95;relationships&#95;(conveniently)</strong>"></a><strong>Adding N:M Relationships (conveniently)</strong></h4><p>Ideally, I'd like to be able to specify the name of a <code>state&#95;forest</code> then pass in a vector of activities that are allowed.  For this to work, we'll need <code>activity</code> row maps to use <code>activity</code> as the key and <code>activity&#95;id</code> as the value.  It'll make sense in a second, so just bear with me.  Here's the remapping function:</p><pre><code class="clojure">&#40;defn activity-remapper 
-  &#91;m&#93; 
-  &#40;hash-map &#40;keyword &#40;:activity m&#41;&#41; &#40;:activity&#95;id m&#41;&#41;&#41;
-; #'public-land-finder/activity-remapper
-
-&#40;activity-remapper {:activity&#95;id 1, :activity &quot;hunting&quot;}&#41;
-; {:hunting 1}
-</code></pre><p>Finally we'll create our new form for building <code>state&#95;forest</code> <code>activity</code> relationships:</p><pre><code class="clojure">&#40;defn load-state-forest-activities!
-  &#91;sf-name activities&#93;
-  &#40;let &#91;sf-id &#40;id-for-state-forest sf-name&#41;
-        activity-map &#40;apply merge &#40;j/query db &#91;&quot;SELECT &#42; FROM activity&quot;&#93;{:row-fn activity-remapper}&#41;&#41;&#93;
-    &#40;j/insert-multi! db :state&#95;forest&#95;activity 
-                     &#40;map #&#40;hash-map :state&#95;forest&#95;id sf-id
-                                     :activity&#95;id &#40;&#40;keyword %&#41; activity-map&#41;&#41; activities&#41;&#41;&#41;&#41;
-; #'public-land-finder/load-state-forest-activities!
-</code></pre><p>Now we can (more) easily add new relationships:</p><pre><code class="clojure">&#40;load-state-forest-activities! &quot;Geneva&quot; &#91;&quot;hunting&quot; &quot;fishing&quot; &quot;trail riding&quot; &quot;hiking&quot; &quot;primitive camping&quot;&#93;&#41;
-; &#40;{:state&#95;forest&#95;id 9, :activity&#95;id 1} 
-;  {:state&#95;forest&#95;id 9, :activity&#95;id 2} 
-;  {:state&#95;forest&#95;id 9, :activity&#95;id 3} 
-;  {:state&#95;forest&#95;id 9, :activity&#95;id 4} 
-;  {:state&#95;forest&#95;id 9, :activity&#95;id 5}&#41;
-</code></pre><h4><a name="<strong>querying&#95;n:m&#95;relationships&#95;(conveniently)</strong>"></a><strong>Querying N:M Relationships (conveniently)</strong></h4><p>Nice.  Now we just need a convenient way to get our data back out.  I'd like a function that accepts a <code>state&#95;forest</code> and returns a sequence of activities.  Since our relationship table stores the id values, let's create a helper function that will perform the <code>activity</code> lookup for an id: </p><pre><code class="clojure">&#40;defn name-for-activity-id 
-  &#91;id&#93; 
-  &#40;j/query db &#91;&quot;SELECT activity FROM activity WHERE activity&#95;id = ?&quot; id&#93; {:row-fn :activity}&#41;&#41;
-; #'public-land-finder/name-for-activity-id
-
-&#40;name-for-activity-id 2&#41;
-; &#40;&quot;fishing&quot;&#41;
-</code></pre><p>The <code>activity</code> query itself will need to use the <code>IN</code> sql condition.  Passing a parameter list into the normal query like we've done elsewhere doesn't work since the underlying JDBC library can't infer the datatype.  Since the list of activity ids is generated interally we don't really have to worry about a malicious user injecting raw SQL.  That being the case, I'll just use a string format function to build the query.  If SQL injection is a concern, we'd have to go through hassle of extending the underlying protocol to convery clojure data types into a format that the underlying JDBC library understands.  But for this example, <code>format</code> is fine:</p><pre><code>&#40;defn query-activities-for-sf 
-  &#91;sf-name&#93;
-  &#40;let &#91;act-ids &#40;j/query db &#91;&quot;SELECT activity&#95;id FROM state&#95;forest&#95;activity WHERE state&#95;forest&#95;id = ?&quot; 
-                             &#40;id-for-state-forest sf-name&#41;&#93;{:row-fn :activity&#95;id}&#41;&#93;
-    &#40;j/query db &#91;&#40;format &quot;SELECT activity FROM activity WHERE activity&#95;id IN &#40;%s&#41;&quot; 
-                         &#40;str/join &quot;,&quot; act-ids&#41;&#41;&#93;{:row-fn :activity}&#41;&#41;&#41;
-; #'public-land-finder/query-activities-for-sf
-
-&#40;query-activities-for-sf &quot;Geneva&quot;&#41;
-; &#40;&quot;hunting&quot; &quot;fishing&quot; &quot;trail riding&quot; &quot;hiking&quot; &quot;primitive camping&quot;&#41;
-</code></pre><h4><a name="<strong>conclusion</strong>"></a><strong>Conclusion</strong></h4><p>As you can see, <code>clojure.java.jdbc</code> is pretty low level.  We're still writing a fair amount of raw SQL to get our work done.  There are a few other Clojure libraries that offer SQL DSLs at a higher level of abstraction.  While it might make sense to go with one of the other libraries, they are all built on top of <code>clojure.java.jdbc</code> so it's worth understanding how they work under the hood.  However, if you are comfortable working with SQL and understand the risks of SQL injection attacks, <code>clojure.java.jdbc</code> might be exactly what you want.</p>
+my&#95;list.index&#40;9&#41;   # 8
+my&#95;list.index&#40;1&#41;   # 0
+my&#95;list.index&#40;42&#41;  # ValueError
+</code></pre><h4><a name="<strong>summary</strong>"></a><strong>Summary</strong></h4><table><thead><tr><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>super simple to implement</td><td>slower than most other forms of search</td></tr><tr><td>fairly performant</td><td>scales linearly</td></tr><tr><td>works on unsorted lists</td><td></td></tr><tr><td>memory efficient (doesn't require copying)</td><td></td></tr></tbody></table><h4><a name="<strong>conclusion</strong>"></a><strong>Conclusion</strong></h4><p>The fact that linear search works on unsorted lists is probably its most compelling feature.  You'll use it all the time, and it's a great example of O(n) algorithmic complexity.  Just remember, any time you have to look at every item in a sequence once (and only once), it's O(n).<br /></p><p>As usual, feel free to hit me up on <a href='https://twitter.com/halescode'>Twitter</a> or send me a message on <a href='https://www.linkedin.com/in/peterstratton'>LinkedIn</a> if you have any questions!</p>
 </div>
 
 <div class="callout">
@@ -339,11 +97,11 @@ Ctrl+C to exit.
     
       <li><b>Tags: </b></li>
       
-        <li><a href="/tags-output/ClojureVids/">ClojureVids</a></li>
+        <li><a href="/tags-output/impostors guide/">impostors guide</a></li>
       
-        <li><a href="/tags-output/Clojure/">Clojure</a></li>
+        <li><a href="/tags-output/algorithms/">algorithms</a></li>
       
-        <li><a href="/tags-output/Postgres/">Postgres</a></li>
+        <li><a href="/tags-output/computer science/">computer science</a></li>
       
     
   </ul>
@@ -354,7 +112,7 @@ Ctrl+C to exit.
     <div id="prev-next">
         
         
-        <a class="right" href="/posts-output/2017-01-04-algorithms-logarithms-and-big-o/">Algorithms, Logarithms, and Big O &raquo;</a>
+        <a class="right" href="/posts-output/2017-01-28-postgres-and-clojure-using-clojure-java-jdbc/">Postgres and Clojure Using clojure.java.jdbc &raquo;</a>
         
     </div>
 </div>
@@ -370,11 +128,11 @@ Ctrl+C to exit.
                     <h4>Recent Posts</h4>
                     <ul>
                         
+                            <li><a href="/posts-output/2017-02-09-linear-search/">The Linear Search Algorithm</a></li>
+                        
                             <li><a href="/posts-output/2017-01-28-postgres-and-clojure-using-clojure-java-jdbc/">Postgres and Clojure Using clojure.java.jdbc</a></li>
                         
                             <li><a href="/posts-output/2017-01-04-algorithms-logarithms-and-big-o/">Algorithms, Logarithms, and Big O</a></li>
-                        
-                            <li><a href="/posts-output/2016-12-13-imposters-guide-to-software-development/">The Impostors Guide to Software Development</a></li>
                         
                     </ul>
                 
@@ -382,17 +140,17 @@ Ctrl+C to exit.
                     <h4>Tags</h4>
                     <ul>
                         
-                            <li><a href="/tags-output/ClojureVids/">ClojureVids</a></li>
-                        
-                            <li><a href="/tags-output/Clojure/">Clojure</a></li>
-                        
-                            <li><a href="/tags-output/Postgres/">Postgres</a></li>
-                        
                             <li><a href="/tags-output/impostors guide/">impostors guide</a></li>
                         
                             <li><a href="/tags-output/algorithms/">algorithms</a></li>
                         
                             <li><a href="/tags-output/computer science/">computer science</a></li>
+                        
+                            <li><a href="/tags-output/ClojureVids/">ClojureVids</a></li>
+                        
+                            <li><a href="/tags-output/Clojure/">Clojure</a></li>
+                        
+                            <li><a href="/tags-output/Postgres/">Postgres</a></li>
                         
                     </ul>
                 

@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Peter Stratton: About</title>
-    <link rel="canonical" href="http://peterstratton.com/pages-output/about/">
+    <title>Peter Stratton: The Linear Search Algorithm</title>
+    <link rel="canonical" href="http://peterstratton.com/posts-output/2017-02-09-linear-search/">
     <link href='http://fonts.googleapis.com/css?family=Alegreya:400italic,700italic,400,700' rel='stylesheet' type='text/css'>
     <script type="text/javascript" async
         src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=MML_CHTML">
@@ -38,7 +38,7 @@
                 <li ><a href="/">Home</a></li>
                 <li ><a href="/archives/">Archives</a></li>
                 
-                <li  class="active" >
+                <li >
                 <a href="/pages-output/about/">About</a>
                 </li>
                 
@@ -65,18 +65,58 @@
         <div class="medium-8 columns">
             <div>
                 
-<div id="custom-page">
-    <div id="page-header">
-        <h2>About</h2>
-    </div>
+<div id="post">
+    <div class="blog-post">
+  <h3>The Linear Search Algorithm <small>2/9/17</small></h3>
+</div>
+
+<div>
     
-    <p><img src="/img/about_portrait_bw.jpg" alt="About Picture" /></p><p>This site is an archive for things I figure out and would rather not forget.  Hopefully it'll help out other people  along the way, but keep in mind that there might be better ways to solve the same problems.  I approach software  development the same way I approached furniture making, with a focus on craftsmanship and usability.  If you come  across any bugs or have any suggestions for better ways to do something, please shoot me an email via one of my social  media profiles and I'll be sure to update the example and give you credit for the help!</p><p>I'm currently living just outside of Philadelphia.  When I'm not building software, I'm either working on my house,  spending time with my family, fly fishing, hunting, or planning/trying not to get lost on a backcountry trip.</p><p>Oh, and if you're wondering about the banner quote, it's from <b>A Scanner Darkly</b> by Philip K. Dick.</p>
+    <hr/><h4><a name="<strong>introduction</strong>"></a><strong>Introduction</strong></h4><p>Self-taught developers tend to have a very pragmatic approach to software development.  We learnt from projects, tutorials, practical courses, and technical books.  There's nothing wrong with that.  But, we're missing some of the fundamentals that traditional Computer Science majors get during their coursework.  The goal of this series is to expose self-taught developers to algorithm design and anaylsis.  This post covers Linear Search, one of the most commonly used algorithms in computer science.</p><h4><a name="<strong>linear&#95;search&#95;-&#95;<code>o&#40;n&#41;&#95;complexity</code></strong>"></a><strong>Linear Search - <code>O&#40;n&#41; Complexity</code></strong></h4><p>Search functions find the position of an item in a list.  Linear Search is the simplest form of search. It simply starts at the beginning and examines every item until it finds a match.  The worst case scenario would be when the item being searched for is at the very end of the list.  Here's a visual representation of linear search across a 15 element sequence where we'll looking for the value 9:</p><p><img src="/img/LinearSearch/LinearSearch.png" alt="Linear Search" /></p><p>A home-grown linear search implementation in Python might look something like this:</p><pre><code class="python">my&#95;list = &#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&#93;
+
+def linear&#95;search&#40;target, src&#95;list&#41;:
+    for i in range&#40;0, len&#40;src&#95;list&#41;&#41;:
+        if src&#95;list&#91;i&#93; == target:
+          return i
+    raise ValueError
+    
+linear&#95;search&#40;9, my&#95;list&#41;   # 8
+linear&#95;search&#40;1, my&#95;list&#41;   # 0
+linear&#95;search&#40;42, my&#95;list&#41;  # ValueError
+</code></pre><p>However, as I've mentioned previously, most programming languages ship with common algorithms already built in. In Python, the Sequence Types implement the <code>index&#40;&#41;</code> method, which performs a linear search similar to our homegrown solution.</p><pre><code class="python">my&#95;list = &#91;1,2,3,4,5,6,7,8,9,10,11,12,13,14,15&#93;
+
+my&#95;list.index&#40;9&#41;   # 8
+my&#95;list.index&#40;1&#41;   # 0
+my&#95;list.index&#40;42&#41;  # ValueError
+</code></pre><h4><a name="<strong>summary</strong>"></a><strong>Summary</strong></h4><table><thead><tr><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>super simple to implement</td><td>slower than most other forms of search</td></tr><tr><td>fairly performant</td><td>scales linearly</td></tr><tr><td>works on unsorted lists</td><td></td></tr><tr><td>memory efficient (doesn't require copying)</td><td></td></tr></tbody></table><h4><a name="<strong>conclusion</strong>"></a><strong>Conclusion</strong></h4><p>The fact that linear search works on unsorted lists is probably its most compelling feature.  You'll use it all the time, and it's a great example of O(n) algorithmic complexity.  Just remember, any time you have to look at every item in a sequence once (and only once), it's O(n).<br /></p><p>As usual, feel free to hit me up on <a href='https://twitter.com/halescode'>Twitter</a> or send me a message on <a href='https://www.linkedin.com/in/peterstratton'>LinkedIn</a> if you have any questions!</p>
+</div>
+
+<div class="callout">
+  <ul class="menu simple">
+    
+    
+      <li><b>Tags: </b></li>
+      
+        <li><a href="/tags-output/impostors guide/">impostors guide</a></li>
+      
+        <li><a href="/tags-output/algorithms/">algorithms</a></li>
+      
+        <li><a href="/tags-output/computer science/">computer science</a></li>
+      
+    
+  </ul>
+</div>
 
     <div id="prev-next">
         
         
+        <a class="right" href="/posts-output/2017-01-28-postgres-and-clojure-using-clojure-java-jdbc/">Postgres and Clojure Using clojure.java.jdbc &raquo;</a>
         
     </div>
+
+    
+
+
 </div>
 
             </div>
